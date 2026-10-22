@@ -2,7 +2,8 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, saveConfig, publicConfig, mergeIncoming, METRIC_KEYS } from './lib/config.js';
+import { loadConfig, saveConfig, publicConfig, mergeIncoming, effective, METRIC_KEYS } from './lib/config.js';
+import { trBody, requestLang } from './lib/i18n.js';
 import { Collector, openDb } from './lib/collector.js';
 import { summary, isDal } from './lib/stats.js';
 import { flows, heatmap, batteryDay, salderingCompare, jaarnota } from './lib/insights.js';
@@ -20,11 +21,11 @@ const db = openDb(DATA_DIR);
 const collector = new Collector(db, () => config);
 const solar = new SolarForecast();
 const signals = new HomeySignals({
-  getSummary: () => summary(db, config, 'dag', new Date(), collector.counters),
+  getSummary: () => summary(db, effective(config), 'dag', new Date(), collector.counters),
   getSolar: () => solar.get(config),
   isDal,
 });
-collector.listeners.add((live, cfg) => signals.run(live, cfg));
+collector.listeners.add((live, cfg) => signals.run(live, effective(cfg)));
 collector.start();
 
 const STATIC = {
@@ -34,6 +35,10 @@ const STATIC = {
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
   '/charts.js': ['charts.js', 'text/javascript; charset=utf-8'],
   '/settings.js': ['settings.js', 'text/javascript; charset=utf-8', true],
+  '/setup': ['setup.html', 'text/html; charset=utf-8', true],
+  '/setup.js': ['setup.js', 'text/javascript; charset=utf-8', true],
+  '/i18n.js': ['i18n.js', 'text/javascript; charset=utf-8'],
+  '/lang-en.js': ['lang-en.js', 'text/javascript; charset=utf-8'],
 };
 
 function authorized(req) {
@@ -87,6 +92,8 @@ async function testMetric(body) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  const lang = requestLang(config, req);
+  const json = (status, body) => send(res, status, trBody(body, lang));
   const p = url.pathname;
   try {
     const needsAuth = STATIC[p]?.[2] || p.startsWith('/api/config') || p.startsWith('/api/homey') || p.startsWith('/api/test') || p.startsWith('/api/dongle') || p.startsWith('/api/signals');
@@ -98,7 +105,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && /^\/fonts\/[\w.-]+\.(woff2|css)$/.test(p)) {
       const type = p.endsWith('.css') ? 'text/css; charset=utf-8' : 'font/woff2';
       const body = await readFile(path.join(ROOT, 'public', p)).catch(() => null);
-      if (!body) return send(res, 404, { error: 'Niet gevonden' });
+      if (!body) return json(404, { error: 'Niet gevonden' });
       res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'public, max-age=31536000, immutable' });
       return res.end(body);
     }
@@ -106,12 +113,15 @@ const server = http.createServer(async (req, res) => {
       const [file, type] = STATIC[p];
       return send(res, 200, await readFile(path.join(ROOT, 'public', file)), type);
     }
-    if (req.method === 'GET' && p === '/api/live') return send(res, 200, collector.live);
+    if (req.method === 'GET' && p === '/api/ui') {
+      return json(200, { language: config.ui.language, country: config.region.country, currency: config.region.currency, setupDone: config.ui.setupDone });
+    }
+    if (req.method === 'GET' && p === '/api/live') return json(200, collector.live);
     if (req.method === 'GET' && p === '/api/summary') {
       const period = ['dag', 'week', 'maand', 'jaar'].includes(url.searchParams.get('period')) ? url.searchParams.get('period') : 'dag';
-      const s = summary(db, config, period, new Date(), collector.counters);
+      const s = summary(db, effective(config), period, new Date(), collector.counters);
       s.flows = flows(db, s.range.from, s.range.to);
-      return send(res, 200, s);
+      return json(200, s);
     }
     if (req.method === 'GET' && p === '/api/history') {
       // Na een herstart: vul het begin van het uur aan met de minuutgemiddelden uit de database
@@ -122,12 +132,12 @@ const server = http.createServer(async (req, res) => {
         .prepare('SELECT ts, solar_w, import_w, export_w, charge_w, discharge_w, house_w, soc FROM minute WHERE ts >= ? AND ts < ? AND solar_w IS NOT NULL ORDER BY ts')
         .all(from, until)
         .map((r) => ({ t: r.ts * 1000 + 30_000, s: Math.round(r.solar_w), g: Math.round(r.import_w - r.export_w), b: Math.round(r.charge_w - r.discharge_w), h: Math.round(r.house_w), soc: r.soc }));
-      return send(res, 200, { points: [...older, ...hist] });
+      return json(200, { points: [...older, ...hist] });
     }
-    if (req.method === 'GET' && p === '/api/heatmap') return send(res, 200, heatmap(db, url.searchParams.get('metric'), 28));
-    if (req.method === 'GET' && p === '/api/battery') return send(res, 200, batteryDay(db, config, url.searchParams.get('date')));
-    if (req.method === 'GET' && p === '/api/saldering') return send(res, 200, salderingCompare(db, config));
-    if (req.method === 'GET' && p === '/api/jaarnota') return send(res, 200, jaarnota(db, config));
+    if (req.method === 'GET' && p === '/api/heatmap') return json(200, heatmap(db, url.searchParams.get('metric'), 28));
+    if (req.method === 'GET' && p === '/api/battery') return json(200, batteryDay(db, effective(config), url.searchParams.get('date')));
+    if (req.method === 'GET' && p === '/api/saldering') return json(200, salderingCompare(db, effective(config)));
+    if (req.method === 'GET' && p === '/api/jaarnota') return json(200, jaarnota(db, effective(config)));
     if (req.method === 'GET' && p === '/api/solar') {
       const sol = await solar.get(config);
       // Werkelijke opwek per uur van vandaag, om naast de voorspelling te zetten
@@ -137,44 +147,44 @@ const server = http.createServer(async (req, res) => {
         .prepare(`SELECT CAST(strftime('%H', ts, 'unixepoch', 'localtime') AS INTEGER) AS h, AVG(solar_w) AS w, SUM(solar_w) / 60000.0 AS kwh
                   FROM minute WHERE ts >= ? GROUP BY h`)
         .all(Math.floor(day / 1000));
-      return send(res, 200, sol);
+      return json(200, sol);
     }
-    if (req.method === 'GET' && p === '/api/signals') return send(res, 200, signals.status);
+    if (req.method === 'GET' && p === '/api/signals') return json(200, signals.status);
     if (req.method === 'POST' && p === '/api/signals/test') {
       signals.lastRun = 0;
       signals.ids = null;
-      await signals.run(collector.live, { ...config, signals: { ...config.signals, enabled: true } });
-      return send(res, 200, signals.status);
+      await signals.run(collector.live, { ...effective(config), signals: { ...config.signals, enabled: true } });
+      return json(200, signals.status);
     }
-    if (req.method === 'GET' && p === '/api/config') return send(res, 200, publicConfig(config));
+    if (req.method === 'GET' && p === '/api/config') return json(200, publicConfig(config));
     if (req.method === 'POST' && p === '/api/config') {
       const next = mergeIncoming(config, await readJson(req));
       await saveConfig(DATA_DIR, next);
       config = next;
       collector.reconfigure();
-      return send(res, 200, publicConfig(config));
+      return json(200, publicConfig(config));
     }
     if (req.method === 'POST' && p === '/api/homey/devices') {
       const { homey } = withStoredSecrets(await readJson(req));
-      return send(res, 200, await listHomeyDevices(homey));
+      return json(200, await listHomeyDevices(homey));
     }
     if (req.method === 'POST' && p === '/api/dongle/test') {
       const { dongle } = withStoredSecrets(await readJson(req));
       const useMain = collector.sources.dongle?.url === dongle.url;
       const client = useMain ? collector.sources.dongle : new DongleClient(dongle.url);
       try {
-        return send(res, 200, await client.waitForTelegram(10_000));
+        return json(200, await client.waitForTelegram(10_000));
       } finally {
         if (!useMain) client.close();
       }
     }
-    if (req.method === 'POST' && p === '/api/test') return send(res, 200, { value: await testMetric(await readJson(req)) });
-    if (req.method === 'GET' && p === '/healthz') return send(res, 200, { ok: true });
+    if (req.method === 'POST' && p === '/api/test') return json(200, { value: await testMetric(await readJson(req)) });
+    if (req.method === 'GET' && p === '/healthz') return json(200, { ok: true });
 
-    send(res, 404, { error: 'Niet gevonden' });
+    json(404, { error: 'Niet gevonden' });
   } catch (e) {
     const msg = e.name === 'TimeoutError' ? 'Bron reageert niet (time-out).' : e.message;
-    send(res, 400, { error: msg });
+    json(400, { error: msg });
   }
 });
 

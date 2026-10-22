@@ -1,9 +1,9 @@
 // Alle grafieken als SVG, zonder externe bibliotheken.
 
 const C = { sun: '#F4B740', batt: '#5ED3B0', grid: '#7AA7FF', house: '#D8D3CB', line: '#232A31', strong: '#3A434D', muted: '#9AA3AC' };
-const nf = (n, d) => n.toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d });
-const eur = (v) => `${v < -0.004 ? '−' : ''}€ ${nf(Math.abs(v), 2)}`;
-const hhmm = (t) => new Date(t).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+import { t as tr, nf, money as eur, LOCALE } from './i18n.js';
+
+const hhmm = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 function linePath(pts) {
@@ -19,7 +19,7 @@ function niceMax(v) {
 
 export function renderLive(el, points) {
   if (!points || points.length < 2) {
-    el.innerHTML = '<p class="empty">De grafiek vult zich automatisch, zodra er een paar metingen binnen zijn.</p>';
+    el.innerHTML = `<p class="empty">${tr('De grafiek vult zich automatisch, zodra er een paar metingen binnen zijn.')}</p>`;
     return;
   }
   const W = el.clientWidth && el.clientWidth < 600 ? 520 : 1000;
@@ -35,12 +35,12 @@ export function renderLive(el, points) {
   const y = (v) => T + ((hi - v) / (hi - lo)) * (H - T - B);
 
   const series = [
-    ['s', C.sun, 'Zon'],
-    ['h', C.house, 'Huis'],
-    ['g', C.grid, 'Net'],
-    ['b', C.batt, 'Batterij'],
+    ['s', C.sun, tr('Zon')],
+    ['h', C.house, tr('Huis')],
+    ['g', C.grid, tr('Net')],
+    ['b', C.batt, tr('Batterij')],
   ];
-  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="Vermogen van het laatste uur">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="${tr('Vermogen van het laatste uur')}">`;
   // Rasterlijnen en labels
   const step = niceMax((hi - lo) / 4);
   for (let v0 = Math.ceil(lo / step) * step; v0 <= hi + 1; v0 += step) {
@@ -91,11 +91,11 @@ export function renderLive(el, points) {
 
 export function renderSolar(el, d) {
   if (!d.enabled) {
-    el.innerHTML = '<p class="empty">Zet de zonnevoorspelling aan in de <a href="/settings">instellingen</a> en vul de gegevens van je panelen in.</p>';
+    el.innerHTML = `<p class="empty">${tr('Zet de zonnevoorspelling aan in de <a href="/settings">instellingen</a> en vul de gegevens van je panelen in.')}</p>`;
     return;
   }
   if (!d.watts) {
-    el.innerHTML = `<p class="empty">${esc(d.error || 'Voorspelling wordt opgehaald…')}</p>`;
+    el.innerHTML = `<p class="empty">${esc(d.error || tr('Voorspelling wordt opgehaald…'))}</p>`;
     return;
   }
   const now = new Date();
@@ -120,7 +120,7 @@ export function renderSolar(el, d) {
   const x = (t) => L + ((t - t0) / (t1 - t0)) * (W - L - R);
   const y = (v) => T + (1 - v / max) * (H - T - B);
   const inRange = pts.filter(([t]) => t >= t0 && t <= t1);
-  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="Voorspelde opwek vandaag en morgen">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="${tr('Voorspelde opwek vandaag en morgen')}">`;
   svg += `<line x1="${x(t0 + 86_400_000)}" x2="${x(t0 + 86_400_000)}" y1="${T}" y2="${H - B}" stroke="${C.line}"/>`;
   if (inRange.length) {
     svg += `<path d="${linePath(inRange.map(([t, w]) => [x(t), y(w)]))} L${x(inRange.at(-1)[0])} ${y(0)} L${x(inRange[0][0])} ${y(0)} Z" fill="${C.sun}" opacity="0.22"/>`;
@@ -129,16 +129,16 @@ export function renderSolar(el, d) {
   const act = (d.actual || []).filter((r) => r.w != null).map((r) => [x(t0 + (r.h + 0.5) * 3_600_000), y(r.w)]);
   if (act.length > 1) svg += `<path d="${linePath(act)}" fill="none" stroke="${C.sun}" stroke-width="2.5"/>`;
   svg += `<line x1="${x(now)}" x2="${x(now)}" y1="${T}" y2="${H - B}" stroke="${C.muted}" stroke-width="1"/>`;
-  svg += `<text x="${x(t0 + 43_200_000)}" y="${H - 5}" text-anchor="middle" class="axis">vandaag</text>`;
-  svg += `<text x="${x(t0 + 129_600_000)}" y="${H - 5}" text-anchor="middle" class="axis">morgen</text></svg>`;
+  svg += `<text x="${x(t0 + 43_200_000)}" y="${H - 5}" text-anchor="middle" class="axis">${tr('vandaag')}</text>`;
+  svg += `<text x="${x(t0 + 129_600_000)}" y="${H - 5}" text-anchor="middle" class="axis">${tr('morgen')}</text></svg>`;
 
   el.innerHTML = `
     <div class="solar-days">
-      <div><div class="muted small">Vandaag verwacht</div><div class="display mid">${nf(d.days?.[today] ?? 0, 1)} <span class="unit">kWh</span></div><div class="muted small">tot nu ${nf(actualKwh, 1)} kWh</div></div>
-      <div><div class="muted small">Morgen verwacht</div><div class="display mid sun-text">${nf(d.days?.[tomorrow] ?? 0, 1)} <span class="unit">kWh</span></div><div class="muted small">${best ? `beste uren ${best}` : ''}</div></div>
+      <div><div class="muted small">${tr('Vandaag verwacht')}</div><div class="display mid">${nf(d.days?.[today] ?? 0, 1)} <span class="unit">kWh</span></div><div class="muted small">${tr('tot nu {kwh} kWh', { kwh: nf(actualKwh, 1) })}</div></div>
+      <div><div class="muted small">${tr('Morgen verwacht')}</div><div class="display mid sun-text">${nf(d.days?.[tomorrow] ?? 0, 1)} <span class="unit">kWh</span></div><div class="muted small">${best ? tr('beste uren {uren}', { uren: best }) : ''}</div></div>
     </div>
     ${svg}
-    <div class="legend small"><span><i class="dash"></i>Voorspelling</span><span><i style="background:${C.sun}"></i>Werkelijk</span></div>
+    <div class="legend small"><span><i class="dash"></i>${tr('Voorspelling')}</span><span><i style="background:${C.sun}"></i>${tr('Werkelijk')}</span></div>
     ${d.error ? `<p class="muted small">${esc(d.error)}</p>` : ''}`;
 }
 
@@ -146,16 +146,16 @@ export function renderSolar(el, d) {
 
 export function renderSankey(el, f) {
   const left = [
-    ['Zon', C.sun, [['huis', f.zh], ['batt', f.zb], ['net', f.zn]]],
-    ['Batterij', C.batt, [['huis', f.bh], ['net', f.bn]]],
-    ['Net', C.grid, [['huis', f.nh], ['batt', f.nb]]],
+    [tr('Zon'), C.sun, [['huis', f.zh], ['batt', f.zb], ['net', f.zn]]],
+    [tr('Batterij'), C.batt, [['huis', f.bh], ['net', f.bn]]],
+    [tr('Net'), C.grid, [['huis', f.nh], ['batt', f.nb]]],
   ];
-  const right = { huis: ['Huis', C.house], batt: ['Batterij', C.batt], net: ['Net', C.grid] };
+  const right = { huis: [tr('Huis'), C.house], batt: [tr('Batterij laden'), C.batt], net: [tr('Teruglevering'), C.grid] };
   const rTot = { huis: f.zh + f.bh + f.nh, batt: f.zb + f.nb, net: f.zn + f.bn };
   const lTot = left.map(([, , links]) => links.reduce((s, [, v]) => s + v, 0));
   const total = Math.max(lTot.reduce((a, b) => a + b, 0), Object.values(rTot).reduce((a, b) => a + b, 0));
   if (total < 0.05) {
-    el.innerHTML = '<p class="empty">Nog geen energiestromen in deze periode.</p>';
+    el.innerHTML = `<p class="empty">${tr('Nog geen energiestromen in deze periode.')}</p>`;
     return;
   }
   const W = 700, H = 320, NW = 14, GAP = 22, LX = 150, RX = W - 150 - NW;
@@ -173,7 +173,7 @@ export function renderSankey(el, f) {
     rPos[k] = { y: yy, h: rTot[k] * scale, off: 0 };
     yy += rTot[k] * scale + (rTot[k] > 0 ? GAP : 0);
   }
-  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="Energiestromen in deze periode">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="${tr('Energiestromen in deze periode')}">`;
   left.forEach(([, col, links], i) => {
     for (const [to, v] of links) {
       if (v * scale < 0.5) continue;
@@ -197,7 +197,7 @@ export function renderSankey(el, f) {
     if (rTot[k] <= 0) continue;
     const p = rPos[k];
     const [name, col] = right[k];
-    const label = k === 'net' ? 'Teruglevering' : k === 'batt' ? 'Batterij laden' : name;
+    const label = name;
     svg += `<rect x="${RX}" y="${p.y}" width="${NW}" height="${Math.max(2, p.h)}" rx="3" fill="${col}"/>`;
     svg += `<text x="${RX + NW + 12}" y="${p.y + p.h / 2 - 2}" class="s-name">${label}</text>`;
     svg += `<text x="${RX + NW + 12}" y="${p.y + p.h / 2 + 16}" class="s-val">${nf(rTot[k], 1)} kWh</text>`;
@@ -212,7 +212,7 @@ export function renderBatteryDay(el, d) {
   const x = (i) => L + (i / 144) * (W - L - R);
   const ySoc = (v) => T + (1 - v / 100) * SOC_H;
   const maxBar = Math.max(0.05, ...d.slots.map((s) => Math.max(s.chg, s.dis)));
-  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="Laadtoestand en laden of ontladen over de dag">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="${tr('Laadtoestand en laden of ontladen over de dag')}">`;
   for (const v of [0, 50, 100]) {
     svg += `<line x1="${L}" x2="${W - R}" y1="${ySoc(v)}" y2="${ySoc(v)}" stroke="${C.line}"/>`;
     svg += `<text x="${L - 6}" y="${ySoc(v) + 4}" text-anchor="end" class="axis">${v}%</text>`;
@@ -246,17 +246,17 @@ export function renderHeatmap(el, data) {
   const days = data.days;
   const vals = days.flatMap((d) => d.values).filter((v) => v != null);
   if (!vals.length) {
-    el.innerHTML = '<p class="empty">Nog geen gegevens voor de afgelopen weken.</p>';
+    el.innerHTML = `<p class="empty">${tr('Nog geen gegevens voor de afgelopen weken.')}</p>`;
     return;
   }
   const max = Math.max(0.05, ...vals.map(Math.abs));
   const CW = 50, CH = 20, L = 84, T = 22;
   const W = L + 24 * CW, H = T + days.length * CH;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg heat" role="img" aria-label="Energie per uur over de afgelopen weken">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg heat" role="img" aria-label="${tr('Energie per uur over de afgelopen weken')}">`;
   for (let h = 0; h < 24; h += 3) svg += `<text x="${L + h * CW + 2}" y="${T - 6}" class="axis">${String(h).padStart(2, '0')}</text>`;
   days.forEach((d, r) => {
     const dt = new Date(`${d.day}T12:00:00`);
-    const label = dt.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+    const label = dt.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
     const weekend = dt.getDay() === 0 || dt.getDay() === 6;
     svg += `<text x="${L - 10}" y="${T + r * CH + CH - 6}" text-anchor="end" class="axis${weekend ? ' strong' : ''}">${label}</text>`;
     d.values.forEach((v, h) => {
@@ -266,8 +266,8 @@ export function renderHeatmap(el, data) {
         fill = col;
         op = 0.07 + 0.93 * Math.min(1, Math.abs(v) / max);
       }
-      const unit = data.metric === 'net' ? (v >= 0 ? 'afname' : 'teruglevering') : 'kWh';
-      const tip = v == null ? 'geen data' : `${nf(Math.abs(v), 2)} kWh ${data.metric === 'net' ? unit : ''}`;
+      const unit = data.metric === 'net' ? (v >= 0 ? tr('afname') : tr('teruglevering')) : '';
+      const tip = v == null ? tr('geen data') : `${nf(Math.abs(v), 2)} kWh ${unit}`.trim();
       svg += `<rect x="${L + h * CW + 1}" y="${T + r * CH + 1}" width="${CW - 2}" height="${CH - 2}" rx="3" fill="${fill}" fill-opacity="${op.toFixed(2)}"><title>${label} ${String(h).padStart(2, '0')}:00, ${tip}</title></rect>`;
     });
   });
@@ -278,7 +278,7 @@ export function renderHeatmap(el, data) {
 
 export function renderJaarnota(el, d) {
   if (!d.ok) {
-    el.innerHTML = `<p class="empty">${esc(d.reason || 'Nog geen voorspelling mogelijk.')}</p>`;
+    el.innerHTML = `<p class="empty">${esc(d.reason === 'dates' ? tr('Vul de start- en einddatum van je contract in.') : d.reason === 'little' ? tr('Nog te weinig gegevens ({n} van de 7 dagen). Vul de meterstanden bij contractstart in, of wacht een week.', { n: Math.floor(d.measuredDays || 0) }) : tr('Nog geen voorspelling mogelijk.'))}</p>`;
     return;
   }
   const terug = d.saldo >= 0;
@@ -287,44 +287,50 @@ export function renderJaarnota(el, d) {
   const max = Math.max(paid, d.total);
   const pct = (v) => `${Math.max(0, (v / max) * 100).toFixed(1)}%`;
   const costParts = [
-    ['Stroom', d.parts.stroom, C.grid],
-    ['Gas', d.parts.gas, C.sun],
-    ['Vaste kosten', d.parts.vast - d.parts.eb, C.house],
-  ];
+    [tr('Stroom'), d.parts.stroom, C.grid],
+    d.hasGas === false ? null : [tr('Gas'), d.parts.gas, C.sun],
+    [tr('Vaste kosten'), d.parts.vast - d.parts.eb, C.house],
+  ].filter(Boolean);
   el.innerHTML = `
     ${noTerm
-      ? `<div class="big-result"><div class="display huge">${eur(d.total)}</div><div>verwachte kosten van je contractjaar</div><div class="muted small">Vul je termijnbedrag in bij de instellingen om te zien of je moet bijbetalen of terugkrijgt.</div></div>`
+      ? `<div class="big-result"><div class="display huge">${eur(d.total)}</div><div>${tr('verwachte kosten van je contractjaar')}</div><div class="muted small">${tr('Vul je termijnbedrag in bij de instellingen om te zien of je moet bijbetalen of terugkrijgt.')}</div></div>`
       : `<div class="big-result ${terug ? 'pos' : 'neg'}">
       <div class="display huge">${eur(Math.abs(d.saldo))}</div>
-      <div>${terug ? 'verwacht terug bij je jaarnota' : 'verwacht bijbetalen bij je jaarnota'}</div>
+      <div>${terug ? tr('verwacht terug bij je jaarnota') : tr('verwacht bijbetalen bij je jaarnota')}</div>
     </div>`}
     <div class="stack-bars">
-      <div class="sb-label"><span>Verwachte kosten</span><span>${eur(d.total)}</span></div>
+      <div class="sb-label"><span>${tr('Verwachte kosten')}</span><span>${eur(d.total)}</span></div>
       <div class="sb-track">${costParts.map(([n, v, col]) => `<span title="${n}: ${eur(v)}" style="width:${pct(Math.max(0, v))};background:${col}"></span>`).join('')}</div>
-      ${noTerm ? '' : `<div class="sb-label"><span>Betaald (${d.months} × termijn${d.bonus ? ' + bonus' : ''})</span><span>${eur(paid)}</span></div>
+      ${noTerm ? '' : `<div class="sb-label"><span>${d.bonus ? tr('Betaald ({n} × termijn + bonus)', { n: d.months }) : tr('Betaald ({n} × termijn)', { n: d.months })}</span><span>${eur(paid)}</span></div>
       <div class="sb-track"><span style="width:${pct(d.termijnen)};background:${C.batt}"></span><span style="width:${pct(d.bonus)};background:${C.batt};opacity:.55"></span></div>`}
     </div>
     <dl class="tariffs">
       ${costParts.map(([n, v, col]) => `<div><dt><i class="sw" style="background:${col}"></i>${n}</dt><dd>${eur(v)}</dd></div>`).join('')}
-      <div><dt>Verbruik</dt><dd>${nf(d.kwh.imp, 0)} kWh, ${nf(d.kwh.gas, 0)} m³</dd></div>
-      <div><dt>Teruglevering</dt><dd>${nf(d.kwh.exp, 0)} kWh</dd></div>
+      <div><dt>${tr('Afname net')}</dt><dd>${nf(d.kwh.imp, 0)} kWh${d.hasGas === false ? '' : `, ${nf(d.kwh.gas, 0)} m³`}</dd></div>
+      <div><dt>${tr('Teruglevering')}</dt><dd>${nf(d.kwh.exp, 0)} kWh</dd></div>
     </dl>
-    ${d.gasOnlySummer && !d.usedLastYear ? '<p class="warn-note">Er is nog geen stookseizoen gemeten, dus het gasverbruik is waarschijnlijk te laag ingeschat. Vul je jaarverbruik van vorig jaar in bij de instellingen voor een betere schatting.</p>' : ''}
-    <p class="muted small">Gebaseerd op ${d.readingDays ? `${d.readingDays} dagen uit meterstanden en ` : ''}${nf(d.liveDays, 1)} ${d.liveDays === 1 ? 'dag' : 'dagen'} live meting, van de ${d.totalDays} contractdagen. De rest is geschat met een seizoensprofiel${d.usedLastYear ? ' en je verbruik van vorig jaar' : ''}.${d.usedReadings ? '' : ' Vul de meterstanden bij contractstart in voor een exacte start.'}</p>`;
+    ${d.gasOnlySummer && !d.usedLastYear ? `<p class="warn-note">${tr('Er is nog geen stookseizoen gemeten, dus het gasverbruik is waarschijnlijk te laag ingeschat. Vul je jaarverbruik van vorig jaar in bij de instellingen voor een betere schatting.')}</p>` : ''}
+    <p class="muted small">${[
+      d.readingDays
+        ? tr('Gebaseerd op {a} dagen uit meterstanden en {b} dagen live meting, van de {c} contractdagen.', { a: d.readingDays, b: nf(d.liveDays, 1), c: d.totalDays })
+        : tr('Gebaseerd op {b} dagen live meting, van de {c} contractdagen.', { b: nf(d.liveDays, 1), c: d.totalDays }),
+      d.usedLastYear ? tr('De rest is geschat met een seizoensprofiel en je verbruik van vorig jaar.') : tr('De rest is geschat met een seizoensprofiel.'),
+      d.usedReadings ? '' : tr('Vul de meterstanden bij contractstart in voor een exacte start.'),
+    ].filter(Boolean).join(' ')}</p>`;
 }
 
 // ---------- Einde saldering ----------
 
 export function renderSaldering(el, d) {
   if (!d.ok) {
-    el.innerHTML = '<p class="empty">Na een dag meten zie je hier wat het einde van de saldering voor jou betekent.</p>';
+    el.innerHTML = `<p class="empty">${tr('Na een dag meten zie je hier wat het einde van de saldering voor jou betekent.')}</p>`;
     return;
   }
   const p = d.perMonth;
   const rows = [
-    ['Nu, met saldering', p.metSaldering, C.batt],
-    ['Vanaf 2027', p.zonderSaldering, C.sun],
-    ['Vanaf 2027 zonder batterij', p.zonderSalderingZonderBatterij, C.house],
+    [tr('Nu, met saldering'), p.metSaldering, C.batt],
+    [tr('Vanaf 2027'), p.zonderSaldering, C.sun],
+    [tr('Vanaf 2027 zonder batterij'), p.zonderSalderingZonderBatterij, C.house],
   ];
   const max = Math.max(1, ...rows.map(([, v]) => Math.abs(v)));
   const extra = p.zonderSaldering - p.metSaldering;
@@ -332,9 +338,9 @@ export function renderSaldering(el, d) {
   el.innerHTML = `
     <div class="hbars">
       ${rows.map(([n, v, col]) => `
-        <div class="hb"><div class="hb-label"><span>${n}</span><span>${eur(v)} /mnd</span></div>
+        <div class="hb"><div class="hb-label"><span>${n}</span><span>${eur(v)} ${tr('/mnd')}</span></div>
         <div class="hb-track"><span style="width:${((Math.max(0, v) / max) * 100).toFixed(1)}%;background:${col}"></span></div></div>`).join('')}
     </div>
-    <p>Vanaf 1 januari betaal je voor stroom naar schatting <strong>${eur(Math.max(0, extra))}</strong> per maand meer. Zonder je batterij zou dat ${eur(Math.max(0, extra + batt))} zijn: de batterij scheelt je dan ongeveer <strong class="sun-text">${eur(Math.max(0, batt))}</strong> per maand.</p>
-    <p class="muted small">Alleen variabele stroomkosten, op basis van de laatste ${nf(Math.min(30, d.days), 0)} dagen. In de zomer, met meer teruglevering, is het verschil groter.</p>`;
+    <p>${tr('Vanaf 1 januari betaal je voor stroom naar schatting <strong>{a}</strong> per maand meer. Zonder je batterij zou dat {b} zijn: de batterij scheelt je dan ongeveer <strong class="sun-text">{c}</strong> per maand.', { a: eur(Math.max(0, extra)), b: eur(Math.max(0, extra + batt)), c: eur(Math.max(0, batt)) })}</p>
+    <p class="muted small">${tr('Alleen variabele stroomkosten, op basis van de laatste {n} dagen. In de zomer, met meer teruglevering, is het verschil groter.', { n: nf(Math.min(30, d.days), 0) })}</p>`;
 }

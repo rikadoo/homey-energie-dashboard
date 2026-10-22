@@ -21,6 +21,40 @@
 <form id="form" novalidate>
 
 <fieldset>
+  <legend>Taal en land</legend>
+  <div class="fields three">
+    <div class="field"><label for="ui-lang">Taal</label>
+      <select id="ui-lang" name="ui.language">
+        <option value="">Automatisch (browser)</option>
+        <option value="nl">Nederlands</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <div class="field"><label for="rg-country">Land</label>
+      <select id="rg-country" name="region.country">
+        <option value="NL">Nederland</option>
+        <option value="OTHER">Ander land</option>
+      </select>
+    </div>
+    <div class="field"><label for="rg-cur">Valuta</label>
+      <select id="rg-cur" name="region.currency">
+        <option value="EUR">Euro (EUR)</option>
+        <option value="GBP">Pond (GBP)</option>
+        <option value="CHF">Zwitserse frank (CHF)</option>
+        <option value="SEK">Zweedse kroon (SEK)</option>
+        <option value="NOK">Noorse kroon (NOK)</option>
+        <option value="DKK">Deense kroon (DKK)</option>
+        <option value="PLN">Poolse zloty (PLN)</option>
+        <option value="CZK">Tsjechische kroon (CZK)</option>
+        <option value="USD">Dollar (USD)</option>
+      </select>
+    </div>
+  </div>
+  <p class="help">Met Nederland rekent het dashboard met de Nederlandse regels: saldering tot 2027, terugleverkosten, vermindering energiebelasting en feestdagen in het daltarief. Bij een ander land gelden alleen je eigen tarieven.</p>
+  <div class="actions"><a class="btn" href="/setup?opnieuw=1" style="display:inline-flex;align-items:center;text-decoration:none">Installatiewizard opnieuw starten</a></div>
+</fieldset>
+
+<fieldset>
   <legend>Homey Pro</legend>
   <p class="help">Maak in de Homey-webapp onder Instellingen, API-sleutels een sleutel met recht op apparaten bekijken. Het adres is het lokale IP van je Homey, bijvoorbeeld http://192.168.1.20.</p>
   <div class="fields">
@@ -62,7 +96,7 @@
 
 <fieldset>
   <legend>Contract</legend>
-  <p class="help">Neem de bedragen over van je contract of tarievenoverzicht, inclusief energiebelasting en btw. Vul alles positief in, ook als je leverancier de terugleververgoeding met een minteken toont.</p>
+  <p class="help">Neem de bedragen over van je contract of tarievenoverzicht, inclusief belastingen en btw. Vul alles positief in, ook als je leverancier de terugleververgoeding met een minteken toont.</p>
   <div class="fields">
     <div class="field"><label for="c-supplier">Leverancier</label><input id="c-supplier" name="contract.supplier"></div>
     <div class="field"><label for="c-desc">Omschrijving</label><input id="c-desc" name="contract.description"></div>
@@ -72,47 +106,49 @@
 
   <h3 class="sub">Stroom</h3>
   <div class="fields">
-    <div class="field"><label for="c-norm">Normaaltarief (€/kWh)</label><input id="c-norm" name="contract.leveringNormaal" type="number" step="0.00001" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-dal">Daltarief (€/kWh)</label><input id="c-dal" name="contract.leveringDal" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-norm"><span data-nl-only>Normaaltarief (per kWh)</span><span data-other-only>Tarief dag (per kWh)</span></label><input id="c-norm" name="contract.leveringNormaal" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-dal"><span data-nl-only>Daltarief (per kWh)</span><span data-other-only>Tarief nacht (per kWh)</span></label><input id="c-dal" name="contract.leveringDal" type="number" step="0.00001" min="0" inputmode="decimal"></div>
     <div class="field"><label for="c-dals">Daltarief vanaf (uur)</label><input id="c-dals" name="contract.dalStart" type="number" step="1" min="0" inputmode="decimal"></div>
     <div class="field"><label for="c-dale">Daltarief tot (uur)</label><input id="c-dale" name="contract.dalEnd" type="number" step="1" min="0" inputmode="decimal"></div>
     <div class="field"><label class="check" for="c-wkd"><input id="c-wkd" name="contract.weekendDal" type="checkbox"> Zaterdag en zondag de hele dag daltarief</label></div>
-    <div class="field"><label class="check" for="c-feest"><input id="c-feest" name="contract.feestdagenDal" type="checkbox"> Feestdagen de hele dag daltarief</label></div>
+    <div class="field" data-nl-only><label class="check" for="c-feest"><input id="c-feest" name="contract.feestdagenDal" type="checkbox"> Feestdagen de hele dag daltarief</label></div>
   </div>
+  <p class="help" data-other-only>Heb je één tarief voor de hele dag? Vul dan bij dag en nacht hetzelfde bedrag in.</p>
 
   <h3 class="sub">Teruglevering</h3>
   <div class="fields">
-    <div class="field"><label class="check" for="c-sal"><input id="c-sal" name="contract.saldering" type="checkbox"> Salderen tot de wisseldatum</label></div>
-    <div class="field"><label for="c-salv">Volgorde van salderen</label>
+    <div class="field" data-nl-only><label class="check" for="c-sal"><input id="c-sal" name="contract.saldering" type="checkbox"> Salderen tot de wisseldatum</label></div>
+    <div class="field" data-nl-only><label for="c-salv">Volgorde van salderen</label>
       <select id="c-salv" name="contract.salderingVolgorde">
         <option value="normaal-eerst">Eerst met normaal, dan dal</option>
         <option value="per-telwerk">Per telwerk (normaal tegen normaal, dal tegen dal)</option>
       </select>
     </div>
-    <div class="field"><label for="c-sal-end">Wisseldatum (einde saldering)</label><input id="c-sal-end" name="contract.salderingEinde" type="date"></div>
-    <div class="field"><label for="c-terug">Terugleververgoeding tot wisseldatum (€/kWh)</label><input id="c-terug" name="contract.terugleverKwh" type="number" step="0.00001" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-kosten">Terugleverkosten tot wisseldatum (€/kWh)</label><input id="c-kosten" name="contract.terugleverkostenKwh" type="number" step="0.00001" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-terug2">Terugleververgoeding vanaf wisseldatum (€/kWh)</label><input id="c-terug2" name="contract.terugleverKwhNa" type="number" step="0.00001" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-kosten2">Terugleverkosten vanaf wisseldatum (€/kWh)</label><input id="c-kosten2" name="contract.terugleverkostenKwhNa" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field" data-nl-only><label for="c-sal-end">Wisseldatum (einde saldering)</label><input id="c-sal-end" name="contract.salderingEinde" type="date"></div>
+    <div class="field"><label for="c-terug"><span data-nl-only>Terugleververgoeding tot wisseldatum (per kWh)</span><span data-other-only>Terugleververgoeding (per kWh)</span></label><input id="c-terug" name="contract.terugleverKwh" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-kosten"><span data-nl-only>Terugleverkosten tot wisseldatum (per kWh)</span><span data-other-only>Terugleverkosten (per kWh, optioneel)</span></label><input id="c-kosten" name="contract.terugleverkostenKwh" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field" data-nl-only><label for="c-terug2">Terugleververgoeding vanaf wisseldatum (per kWh)</label><input id="c-terug2" name="contract.terugleverKwhNa" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field" data-nl-only><label for="c-kosten2">Terugleverkosten vanaf wisseldatum (per kWh)</label><input id="c-kosten2" name="contract.terugleverkostenKwhNa" type="number" step="0.00001" min="0" inputmode="decimal"></div>
   </div>
 
   <h3 class="sub">Gas</h3>
   <div class="fields">
-    <div class="field"><label for="c-gas">Gastarief (€/m³)</label><input id="c-gas" name="contract.gasM3" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-gas">Gastarief (per m³)</label><input id="c-gas" name="contract.gasM3" type="number" step="0.00001" min="0" inputmode="decimal"></div>
   </div>
 
   <h3 class="sub">Vaste kosten per jaar</h3>
   <div class="fields">
-    <div class="field"><label for="c-svast">Stroom, vaste leveringskosten (€/jaar)</label><input id="c-svast" name="contract.stroomVastJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-snet">Stroom, systeembeheerkosten (€/jaar)</label><input id="c-snet" name="contract.stroomNetbeheerJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-gvast">Gas, vaste leveringskosten (€/jaar)</label><input id="c-gvast" name="contract.gasVastJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-gnet">Gas, systeembeheerkosten (€/jaar)</label><input id="c-gnet" name="contract.gasNetbeheerJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-veb">Vermindering energiebelasting (€/jaar)</label><input id="c-veb" name="contract.verminderingEbJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-svast">Stroom, vaste leveringskosten (per jaar)</label><input id="c-svast" name="contract.stroomVastJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-snet">Stroom, netbeheerkosten (per jaar)</label><input id="c-snet" name="contract.stroomNetbeheerJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-gvast">Gas, vaste leveringskosten (per jaar)</label><input id="c-gvast" name="contract.gasVastJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-gnet">Gas, netbeheerkosten (per jaar)</label><input id="c-gnet" name="contract.gasNetbeheerJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field" data-nl-only><label for="c-veb">Vermindering energiebelasting (per jaar)</label><input id="c-veb" name="contract.verminderingEbJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
   </div>
-  <p class="help">De vermindering energiebelasting is een vaste korting per jaar, vastgesteld door de overheid: € 628,96 in 2026 (incl. btw).</p>
+  <p class="help" data-nl-only>De vermindering energiebelasting is een vaste korting per jaar, vastgesteld door de overheid: € 628,96 in 2026 (incl. btw).</p>
+  <p class="help" data-other-only>Betaal je vaste kosten per maand? Vermenigvuldig ze dan met 12.</p>
 
   <h3 class="sub">Meterstanden op de startdatum</h3>
-  <p class="help">Optioneel, voor een exacte jaarnota-voorspelling. Vraag de meterstanden op de startdatum op bij je netbeheerder (of kijk in de app van je leverancier). Laag/T1 is dal, hoog/T2 is normaal. Werkt alleen als het net via de Energy Dongle direct wordt uitgelezen.</p>
+  <p class="help">Optioneel, voor een exacte jaarvoorspelling. Vraag de meterstanden op de startdatum op bij je netbeheerder of leverancier. Laag/T1 is dal, hoog/T2 is normaal. Werkt alleen als het net via de Energy Dongle direct wordt uitgelezen.</p>
   <div class="fields">
     <div class="field"><label for="sm-in">Afname normaal (kWh)</label><input id="sm-in" name="contract.startMeter.impNormaal" type="number" step="0.001" min="0" inputmode="decimal"></div>
     <div class="field"><label for="sm-id">Afname dal (kWh)</label><input id="sm-id" name="contract.startMeter.impDal" type="number" step="0.001" min="0" inputmode="decimal"></div>
@@ -122,7 +158,7 @@
   </div>
 
   <h3 class="sub">Jaarverbruik vorig jaar (optioneel)</h3>
-  <p class="help">Van je vorige jaarnota of eindafrekening. Zolang het dashboard nog geen heel jaar heeft gemeten, gebruikt de jaarnota-voorspelling dit voor de maanden die nog komen, vooral voor het gas in de winter.</p>
+  <p class="help">Van je vorige jaarafrekening. Zolang het dashboard nog geen heel jaar heeft gemeten, gebruikt de jaarvoorspelling dit voor de maanden die nog komen, vooral voor het gas in de winter.</p>
   <div class="fields three">
     <div class="field"><label for="vj-imp">Afname stroom (kWh)</label><input id="vj-imp" name="contract.vorigJaar.imp" type="number" step="1" min="0" inputmode="numeric"></div>
     <div class="field"><label for="vj-exp">Teruglevering (kWh)</label><input id="vj-exp" name="contract.vorigJaar.exp" type="number" step="1" min="0" inputmode="numeric"></div>
@@ -131,8 +167,8 @@
 
   <h3 class="sub">Betaling</h3>
   <div class="fields">
-    <div class="field"><label for="c-termijn">Termijnbedrag (€/maand)</label><input id="c-termijn" name="contract.termijnbedrag" type="number" step="0.01" min="0" inputmode="decimal"></div>
-    <div class="field"><label for="c-bonus">Loyaliteitsbonus (€, eenmalig)</label><input id="c-bonus" name="contract.bonus" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-termijn">Termijnbedrag (per maand)</label><input id="c-termijn" name="contract.termijnbedrag" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-bonus">Bonus of korting op de jaarafrekening (eenmalig)</label><input id="c-bonus" name="contract.bonus" type="number" step="0.01" min="0" inputmode="decimal"></div>
   </div>
 </fieldset>
 
@@ -160,7 +196,7 @@
 
 <fieldset>
   <legend>Signalen naar Homey</legend>
-  <p class="help">Het dashboard houdt een paar variabelen bij in Homey (Logica), die je in flows kunt gebruiken: Energie overschot (W), Energie zonne-overschot, Energie batterij vol, Energie batterij (%), Energie daltarief, Energie kosten vandaag (€) en Energie zon morgen (kWh). De API-sleutel van Homey heeft hiervoor ook het recht nodig om Logica te beheren.</p>
+  <p class="help">Het dashboard houdt zeven variabelen bij in Homey (Logica) die je in flows kunt gebruiken, allemaal beginnend met "Energie": overschot, zonne-overschot, batterij vol, batterij (%), daltarief, kosten vandaag en zon morgen. De API-sleutel van Homey heeft hiervoor ook het recht Variabelen nodig.</p>
   <div class="fields">
     <div class="field wide"><label class="check" for="sg-on"><input id="sg-on" name="signals.enabled" type="checkbox"> Signalen naar Homey aan</label></div>
     <div class="field"><label for="sg-w">Zonne-overschot vanaf (W teruglevering)</label><input id="sg-w" name="signals.surplusW" type="number" step="50" min="0" inputmode="numeric"></div>

@@ -2,7 +2,7 @@
 
 Een lokaal, zelf te hosten energiedashboard voor **Homey Pro**. Zonnepanelen, thuisbatterij, net, gas en je energiecontract op één overzichtelijke pagina, met kosten die echt rekenen met jouw tarieven. Eén Docker-container, geen cloud, geen account, geen externe pakketten.
 
-> *English summary at the bottom.*
+> 🇬🇧 **English documentation:** [README.en.md](README.en.md). Het dashboard zelf is beschikbaar in het Nederlands en het Engels.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -34,6 +34,12 @@ Een lokaal, zelf te hosten energiedashboard voor **Homey Pro**. Zonnepanelen, th
 - Jaarnota-voorspelling: bijbetalen of terugkrijgen?
 - Wat kost het einde van de saldering jou, met en zonder batterij?
 
+**Voor iedereen**
+- Nederlands en Engels, automatisch in de taal van je browser of vast in te stellen
+- Installatiewizard bij de eerste keer opstarten
+- Nederland met alle Nederlandse regels, of een ander land met alleen je eigen tarieven (in je eigen valuta)
+- Zonnepanelen, thuisbatterij, gas en Energy Dongle zijn allemaal optioneel
+
 **Homey-koppeling**
 - Het dashboard houdt Logica-variabelen bij in Homey voor je flows: overschot (W), zonne-overschot, batterij vol, batterij (%), daltarief, kosten vandaag en zon morgen
 
@@ -57,11 +63,28 @@ mkdir data && sudo chown 1000:1000 data     # de container draait als gebruiker 
 docker compose up -d
 ```
 
-Open daarna `http://<server>:8080` en klik rechtsboven op het tandwiel.
+Open daarna `http://<server>:8080`. De eerste keer start de **installatiewizard**:
+
+1. Taal en land kiezen
+2. Homey koppelen (adres en API-sleutel)
+3. Kiezen wat je hebt: zonnepanelen, thuisbatterij, gas, Energy Dongle
+4. Apparaten koppelen (met een voorstel en de actuele waarde ter controle)
+5. Tarieven invullen (mag ook later)
+6. Extra's: zonnevoorspelling en signalen naar Homey
+
+![Installatiewizard](docs/screenshots/wizard.png)
+
+Alles is daarna aan te passen bij de instellingen (tandwiel rechtsboven). Daar kun je de wizard ook opnieuw starten.
 
 Liever zelf bouwen? Clone de repository en vervang in `docker-compose.yml` de regel `image:` door `build: .`.
 
-## Instellen
+## Taal en land
+
+- **Taal:** Nederlands of Engels. Standaard volgt het dashboard je browser; bij de instellingen kun je de taal vastzetten.
+- **Land Nederland:** saldering tot 1 januari 2027 (met keuze voor de volgorde), terugleverkosten, de vermindering energiebelasting en Nederlandse feestdagen in het daltarief.
+- **Ander land:** alleen je eigen tarieven: dag- en nachttarief, terugleververgoeding, eventueel terugleverkosten, gas en vaste kosten, in je eigen valuta. De Nederlandse onderdelen verdwijnen uit het dashboard en de instellingen.
+
+## Instellen in detail
 
 ### 1. Homey Pro
 Maak in de Homey-webapp (my.homey.app) onder **Instellingen → API-sleutels** een sleutel met deze rechten:
@@ -148,8 +171,8 @@ Alles wat je moet bewaren staat in de map `data`:
 
 ## Beperkingen
 
-- Gemaakt voor **Nederland**: DSMR-slimme meters, Nederlandse daltijden en feestdagen, de salderingsregeling en de vermindering energiebelasting.
-- De interface is Nederlandstalig.
+- De Energy Dongle werkt met DSMR-slimme meters (Nederland en België). In andere landen komt het netvermogen via een ander Homey-apparaat; dan worden afname en teruglevering uit het vermogen berekend.
+- Buiten Nederland is het kostenmodel eenvoudig: dag/nacht, terugleververgoeding en vaste kosten. Speciale regelingen van andere landen (zoals een capaciteitstarief) zitten er niet in.
 - Thuisbatterijen die via een cloud-koppeling in Homey zitten, kunnen achterlopen. Het dashboard vangt onmogelijke waarden af, maar een verouderde waarde die wél kan kloppen is niet te herkennen.
 - De kostenberekening is een benadering en geen vervanging van je jaarnota.
 
@@ -170,17 +193,16 @@ lib/stats.js       overzichten, kosten, daltijden, feestdagen
 lib/insights.js    Sankey, heatmap, batterijdag, jaarnota, saldering
 lib/solar.js       zonnevoorspelling
 lib/signals.js     variabelen in Homey
-public/            dashboard en instellingenpagina (HTML, CSS, JS, SVG-grafieken)
+lib/i18n.js        vertaling van servermeldingen
+public/            dashboard, instellingen en wizard (HTML, CSS, JS, SVG-grafieken)
+public/i18n.js     vertaallaag; public/lang-en.js bevat de Engelse teksten
 ```
+
+### Vertalen
+De Nederlandse tekst is de sleutel. Een nieuwe tekst gebruik je in de code als `t('Nederlandse tekst')` en voeg je toe aan `public/lang-en.js`. Ontbreekt een vertaling, dan blijft de Nederlandse tekst staan. Wil je een taal toevoegen? Maak een `lang-xx.js` en breid `public/i18n.js` uit; pull requests zijn welkom.
 
 ## Licentie
 
 MIT, zie [LICENSE](LICENSE). Lettertypen: Bricolage Grotesque en IBM Plex, onder de SIL Open Font License 1.1 (zie `public/fonts/LICENSE-fonts.txt`).
 
 Dit project is niet verbonden aan Athom (Homey) of aan een energieleverancier. De screenshots tonen demogegevens.
-
----
-
-## English summary
-
-A self-hosted energy dashboard for **Homey Pro** users in the Netherlands. It reads your solar inverter, home battery, smart meter (ideally via the Homey Energy Dongle's local API) and gas meter from Homey, stores per-minute data in SQLite, and shows live energy flows, history, a Sankey diagram, a battery day view, a usage heatmap, a solar forecast, an annual bill forecast and the impact of the end of net metering ("saldering") in 2027, all based on your own contract tariffs. It can also write Logic variables back to Homey for use in flows. Single Docker container, no cloud, no dependencies. The interface and the cost model are Dutch-specific.

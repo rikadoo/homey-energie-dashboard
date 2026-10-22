@@ -1,19 +1,27 @@
 import { renderLive as renderLiveChart, renderSolar, renderSankey, renderBatteryDay, renderHeatmap, renderJaarnota, renderSaldering } from './charts.js';
+import { initI18n, applyStatic, t, nf, money, time, dateLong, LOCALE, ui } from './i18n.js';
+
+await initI18n();
+// Eerste keer: naar de installatiewizard
+if (!ui.setupDone) {
+  location.replace('/setup');
+  await new Promise(() => {}); // niets meer laden tijdens het doorsturen
+}
+applyStatic();
+const NL = () => ui.country === 'NL';
 
 const $ = (id) => document.getElementById(id);
-const nf = (n, d) => n.toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d });
 const kw = (w) => `${nf(w / 1000, 2)} kW`;
-const eur = (v) => `${v < -0.004 ? '−' : ''}€ ${nf(Math.abs(v), 2)}`;
-const time = (d) => d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-const dateLong = (s) => {
-  const [y, m, d] = String(s).split('-').map(Number);
-  return y ? new Date(y, m - 1, d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
-};
 const THRESHOLD = 15; // watt; kleinere stromen tonen we niet als actief
 
 let period = 'dag';
 let lastSolar = null; // laatste zonnevoorspelling, voor "vol rond"
 let has = { battery: true, gas: true, solar: true }; // welke bronnen gekoppeld zijn
+let refresh = 10;
+
+$('notice').innerHTML = t('Er zijn nog geen bronnen gekoppeld. <a href="/settings">Open de instellingen</a> om je Homey of Energy Dongle toe te voegen.');
+$('notice-tariffs').innerHTML = t('Je energietarieven zijn nog niet ingevuld, dus de kosten staan op 0. <a href="/settings">Vul je contract in</a> bij de instellingen.');
+if (!NL()) $('saldering-card').hidden = true;
 
 // Resterende voorspelde opwek vandaag (kWh) en het laatste moment met zon
 function solarRestToday() {
@@ -21,7 +29,7 @@ function solarRestToday() {
   const now = Date.now();
   const end = new Date();
   end.setHours(24, 0, 0, 0);
-  const pts = lastSolar.watts.map(([t, w]) => [new Date(t).getTime(), w]).filter(([t]) => t <= +end);
+  const pts = lastSolar.watts.map(([tt, w]) => [new Date(tt).getTime(), w]).filter(([tt]) => tt <= +end);
   let kwh = 0;
   let sunset = null;
   for (let i = 1; i < pts.length; i++) {
@@ -31,10 +39,9 @@ function solarRestToday() {
     const a = Math.max(t0, now);
     kwh += (((w0 + w1) / 2) * (t1 - a)) / 3.6e9;
   }
-  for (const [t, w] of pts) if (w > 50 && new Date(t).toDateString() === new Date().toDateString()) sunset = t;
+  for (const [tt, w] of pts) if (w > 50 && new Date(tt).toDateString() === new Date().toDateString()) sunset = tt;
   return { kwh, sunset };
 }
-let refresh = 10;
 
 async function getJSON(url) {
   const res = await fetch(url, { cache: 'no-store' });
@@ -69,14 +76,13 @@ function renderLive(d) {
   }
   refresh = d.refreshSeconds || refresh;
   const errs = Object.keys(d.errors || {});
-  if (!d.configured) setStatus('', 'Geen bronnen gekoppeld');
-  else if (!d.ts) setStatus('', 'Wachten op eerste meting');
+  if (!d.configured) setStatus('', t('Geen bronnen gekoppeld'));
+  else if (!d.ts) setStatus('', t('Wachten op eerste meting'));
   else if (errs.length) {
-    const names = { solar_w: 'Zon', grid_w: 'Net', battery_w: 'Batterij', battery_soc: 'Laadtoestand', gas_m3: 'Gas' };
+    const names = { solar_w: t('Zon'), grid_w: t('Net'), battery_w: t('Batterij'), battery_soc: t('Laadtoestand'), gas_m3: t('Gas') };
     const list = errs.map((k) => names[k] || k);
-    setStatus('warn', `Fout bij ${list.join(', ')}`, errs.map((k) => `${names[k] || k}: ${d.errors[k]}`).join('\n'));
-  }
-  else setStatus('ok', `Live, <span class="hide-sm">bijgewerkt </span>${time(new Date(d.ts))}`, '', true);
+    setStatus('warn', t('Fout bij {list}', { list: list.join(', ') }), errs.map((k) => `${names[k] || k}: ${d.errors[k]}`).join('\n'));
+  } else setStatus('ok', t('Live, <span class="hide-sm">bijgewerkt </span>{time}', { time: time(new Date(d.ts)) }), '', true);
 
   const v = d.values || {};
   const s = Math.max(0, v.solar_w ?? 0);
@@ -100,16 +106,16 @@ function renderLive(d) {
   $('v-solar').textContent = v.solar_w == null ? '–' : kw(s);
   $('v-house').textContent = v.house_w == null ? '–' : kw(h);
   $('v-grid').textContent = v.grid_w == null ? '–' : exp > 0 ? `−${kw(exp)}` : kw(imp);
-  $('l-grid').textContent = v.grid_w == null ? 'Net' : exp >= THRESHOLD ? 'Teruglevering' : imp >= THRESHOLD ? 'Afname net' : 'Net';
-  $('flow-summary').textContent = h > THRESHOLD ? `Eigen energie dekt ${Math.round(Math.min(1, (zh + bh) / h) * 100)}% van je huis` : '';
+  $('l-grid').textContent = v.grid_w == null ? t('Net') : exp >= THRESHOLD ? t('Teruglevering') : imp >= THRESHOLD ? t('Afname net') : t('Net');
+  $('flow-summary').textContent = h > THRESHOLD ? t('Eigen energie dekt {pct}% van je huis', { pct: Math.round(Math.min(1, (zh + bh) / h) * 100) }) : '';
 
   // Batterij
   const bat = d.battery || {};
   const cap = bat.capacityKwh || 0;
   const soc = v.battery_soc;
-  $('batt-name').textContent = bat.name || 'Thuisbatterij';
-  $('batt-cap').textContent = cap ? `van ${nf(cap, 1)} kWh` : '';
-  $('l-batt').textContent = chg >= THRESHOLD ? 'Batterij laadt' : dis >= THRESHOLD ? 'Batterij ontlaadt' : 'Batterij';
+  $('batt-name').textContent = bat.name || t('Thuisbatterij');
+  $('batt-cap').textContent = cap ? t('van {kwh} kWh', { kwh: nf(cap, 1) }) : '';
+  $('l-batt').textContent = chg >= THRESHOLD ? t('Batterij laadt') : dis >= THRESHOLD ? t('Batterij ontlaadt') : t('Batterij');
   const sign = chg >= THRESHOLD ? '+' : dis >= THRESHOLD ? '−' : '';
   const pw = v.battery_w == null ? '' : `${sign}${kw(Math.abs(b))}`;
   $('v-batt').textContent = [pw, soc != null ? `${Math.round(soc)}%` : ''].filter(Boolean).join(', ') || '–';
@@ -121,9 +127,9 @@ function renderLive(d) {
     $('batt-fill').setAttribute('width', String(Math.max(1, (20 * soc) / 100)));
     $('batt-kwh').textContent = cap ? nf((soc / 100) * cap, 1) : `${Math.round(soc)}%`;
   }
-  let state = 'In rust', eta = '';
+  let state = t('In rust'), eta = '';
   if (chg >= THRESHOLD) {
-    state = `Laden, +${kw(chg)}`;
+    state = t('Laden, +{kw}', { kw: kw(chg) });
     if (soc != null && cap && soc < 99) {
       const need = ((100 - soc) / 100) * cap;
       const at = Date.now() + (need / (chg / 1000)) * 3.6e6;
@@ -132,23 +138,23 @@ function renderLive(d) {
       const reachable = sun
         ? sun.sunset != null && at <= sun.sunset && need <= sun.kwh * 0.8
         : new Date(at).toDateString() === new Date().toDateString() && new Date(at).getHours() < 19;
-      eta = reachable ? `Vol rond ${time(new Date(at))}` : 'Wordt vandaag waarschijnlijk niet vol';
+      eta = reachable ? t('Vol rond {time}', { time: time(new Date(at)) }) : t('Wordt vandaag waarschijnlijk niet vol');
     }
   } else if (dis >= THRESHOLD) {
-    state = `Ontladen, −${kw(dis)}`;
+    state = t('Ontladen, −{kw}', { kw: kw(dis) });
     if (soc != null && cap && soc > 1) {
       const hrs = ((soc / 100) * cap) / (dis / 1000);
-      if (hrs < 24) eta = `Leeg rond ${time(new Date(Date.now() + hrs * 3.6e6))}`;
+      if (hrs < 24) eta = t('Leeg rond {time}', { time: time(new Date(Date.now() + hrs * 3.6e6)) });
     }
   }
-  $('batt-state').textContent = v.battery_w == null ? '' : state + (d.batteryCorrected ? ' (gecorrigeerd)' : '');
+  $('batt-state').textContent = v.battery_w == null ? '' : state + (d.batteryCorrected ? ` (${t('gecorrigeerd')})` : '');
   $('batt-eta').textContent = eta;
 
   // Laat zien als de batterijgegevens oud zijn (bijv. vertraging van een cloud-koppeling)
   const upd = Math.max(d.updated?.battery_w || 0, d.updated?.battery_soc || 0);
   const stale = $('batt-stale');
   if (upd && Date.now() - upd > 5 * 60_000) {
-    stale.textContent = `Batterijgegevens van ${time(new Date(upd))}`;
+    stale.textContent = t('Batterijgegevens van {time}', { time: time(new Date(upd)) });
     stale.hidden = false;
   } else stale.hidden = true;
 }
@@ -157,7 +163,7 @@ async function loadLive() {
   try {
     renderLive(await getJSON('/api/live'));
   } catch {
-    setStatus('warn', 'Server niet bereikbaar');
+    setStatus('warn', t('Server niet bereikbaar'));
   } finally {
     setTimeout(loadLive, refresh * 1000);
   }
@@ -165,13 +171,30 @@ async function loadLive() {
 
 // ---------- Overzicht ----------
 
+function periodLabel(p) {
+  const now = new Date();
+  if (p === 'week') return t('deze week');
+  if (p === 'maand') return now.toLocaleDateString(LOCALE, { month: 'long' });
+  if (p === 'jaar') return String(now.getFullYear());
+  return t('vandaag');
+}
+
+function bucketLabel(p, key, i) {
+  if (p === 'dag') return i % 3 === 0 ? key : '';
+  if (p === 'week') return new Date(`${key}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short' });
+  if (p === 'maand') return i === 0 || (i + 1) % 5 === 0 ? String(i + 1) : '';
+  return new Date(2000, Number(key) - 1, 1).toLocaleDateString(LOCALE, { month: 'short' });
+}
+
 function renderToday(s) {
   const c = s.costs;
   const total = $('today-total');
-  total.textContent = eur(c.totaal);
+  total.textContent = money(c.totaal);
   total.classList.toggle('pos', c.totaal < 0);
-  $('today-saved').textContent = eur(c.bespaard);
-  $('today-split').textContent = has.gas ? `Stroom ${eur(c.stroom)}, gas ${eur(c.gas)}, vaste kosten ${eur(c.vast)}` : `Stroom ${eur(c.stroom)}, vaste kosten ${eur(c.vast)}`;
+  $('today-saved').textContent = money(c.bespaard);
+  $('today-split').textContent = has.gas
+    ? t('Stroom {a}, gas {b}, vaste kosten {c}', { a: money(c.stroom), b: money(c.gas), c: money(c.vast) })
+    : t('Stroom {a}, vaste kosten {c}', { a: money(c.stroom), c: money(c.vast) });
 }
 
 function kpi(label, value, unit, color, sub) {
@@ -187,32 +210,39 @@ function kpi(label, value, unit, color, sub) {
 }
 
 function renderSummary(s) {
-  $('overview-title').textContent = `Overzicht ${s.label}`;
+  const label = periodLabel(s.period);
+  $('overview-title').textContent = t('Overzicht {label}', { label });
   const d = s.period === 'maand' || s.period === 'jaar' ? 0 : 1;
-  const t = s.totals;
+  const tot = s.totals;
   const pct = (x) => (x == null ? '–' : String(Math.round(x * 100)));
+  const exportSub = NL() && s.contract.salderingActief
+    ? t('{a} gesaldeerd, {b} kosten', { a: money(s.costs.teruglevering), b: money(s.costs.terugleverkosten) })
+    : s.costs.terugleverkosten > 0
+      ? t('{a} vergoeding, {b} kosten', { a: money(s.costs.teruglevering), b: money(s.costs.terugleverkosten) })
+      : t('{a} vergoeding', { a: money(s.costs.teruglevering) });
 
   $('kpis').replaceChildren(
-    kpi('Opwek', nf(t.solar, d), 'kWh', 'var(--sun)', s.selfConsumption == null ? 'Nog geen opwek' : `Zelf verbruikt ${pct(s.selfConsumption)}%`),
-    kpi('Verbruik', nf(t.house, d), 'kWh', 'var(--house)', has.gas ? `Gas ${nf(t.gas, d)} m³` : 'Stroom in huis'),
-    kpi('Teruglevering', nf(t.exp, d), 'kWh', 'var(--grid)', `${eur(s.costs.teruglevering)} ${s.contract.salderingActief ? 'gesaldeerd' : 'vergoeding'}, ${eur(s.costs.terugleverkosten)} kosten`),
-    kpi('Afname net', nf(t.imp, d), 'kWh', 'var(--grid)', `${eur(s.costs.afname)}, waarvan ${nf(t.impDal, d)} kWh dal`),
-    kpi('Zelfvoorzienend', pct(s.selfSufficiency), '%', 'var(--batt)', 'Uit zon en batterij'),
+    kpi(t('Opwek'), nf(tot.solar, d), 'kWh', 'var(--sun)', s.selfConsumption == null ? t('Nog geen opwek') : t('Zelf verbruikt {pct}%', { pct: pct(s.selfConsumption) })),
+    kpi(t('Verbruik'), nf(tot.house, d), 'kWh', 'var(--house)', has.gas ? t('Gas {m3} m³', { m3: nf(tot.gas, d) }) : t('Stroom in huis')),
+    kpi(t('Teruglevering'), nf(tot.exp, d), 'kWh', 'var(--grid)', exportSub),
+    kpi(t('Afname net'), nf(tot.imp, d), 'kWh', 'var(--grid)', t('{cost}, waarvan {kwh} kWh dal', { cost: money(s.costs.afname), kwh: nf(tot.impDal, d) })),
+    kpi(t('Zelfvoorzienend'), pct(s.selfSufficiency), '%', 'var(--batt)', t('Uit zon en batterij')),
   );
 
   // Grafiek: opwek omhoog, verbruik omlaag, zelfde schaal.
   const max = Math.max(0.001, ...s.buckets.map((b) => Math.max(b.solar, b.house)));
   const unit = s.period === 'jaar' || s.period === 'maand' ? 0 : 2;
   $('chart').replaceChildren(
-    ...s.buckets.map((b) => {
+    ...s.buckets.map((b, i) => {
+      const lbl = bucketLabel(s.period, b.key, i);
       const col = document.createElement('div');
       col.className = 'col';
-      col.title = `${b.label || ''} opwek ${nf(b.solar, unit)} kWh, verbruik ${nf(b.house, unit)} kWh`.trim();
+      col.title = t('{label} opwek {s} kWh, verbruik {h} kWh', { label: lbl, s: nf(b.solar, unit), h: nf(b.house, unit) }).trim();
       col.innerHTML = '<div class="up"><div class="bar sun"></div></div><div class="base"></div><div class="down"><div class="bar use"></div></div><div class="lbl"></div>';
-      const h = (v) => (v > 0 ? `${Math.max(1.5, (v / max) * 96)}%` : '0');
-      col.querySelector('.sun').style.height = h(b.solar);
-      col.querySelector('.use').style.height = h(b.house);
-      col.querySelector('.lbl').textContent = b.label;
+      const hh = (v) => (v > 0 ? `${Math.max(1.5, (v / max) * 96)}%` : '0');
+      col.querySelector('.sun').style.height = hh(b.solar);
+      col.querySelector('.use').style.height = hh(b.house);
+      col.querySelector('.lbl').textContent = lbl;
       return col;
     }),
   );
@@ -220,68 +250,70 @@ function renderSummary(s) {
   $('notice-tariffs').hidden = !(s.contract.leveringNormaal === 0 && s.contract.leveringDal === 0);
 
   // Energiestromen
-  $('sankey-label').textContent = s.label;
+  $('sankey-label').textContent = label;
   if (s.flows) renderSankey($('sankey'), s.flows);
 
   // Contract
   const c = s.contract;
-  $('c-supplier').textContent = c.supplier || 'Contract';
-  $('c-desc').textContent = c.description || '';
+  $('c-supplier').textContent = c.supplier || t('Contract');
+  $('c-desc').textContent = c.description ? t(c.description) : '';
   $('c-start').textContent = dateLong(c.start);
   $('c-end').textContent = dateLong(c.end);
   $('c-progress').style.width = c.totalDays ? `${Math.min(100, (c.elapsedDays / c.totalDays) * 100)}%` : '0';
-  $('c-days').textContent = c.totalDays ? `${c.elapsedDays} dagen verstreken, nog ${c.remainingDays} dagen` : 'Vul de looptijd in bij instellingen';
+  $('c-days').textContent = c.totalDays ? t('{a} dagen verstreken, nog {b} dagen', { a: c.elapsedDays, b: c.remainingDays }) : t('Vul de looptijd in bij instellingen');
 
   const parts = [];
-  if (c.termijnbedrag) parts.push(`Termijnbedrag ${eur(c.termijnbedrag)} per maand`);
-  if (c.bonus) parts.push(`loyaliteitsbonus ${eur(c.bonus)} op je jaarnota`);
+  if (c.termijnbedrag) parts.push(t('Termijnbedrag {a} per maand', { a: money(c.termijnbedrag) }));
+  if (c.bonus) parts.push(t('bonus {a} op je jaarafrekening', { a: money(c.bonus) }));
   $('c-termijn').textContent = parts.join(', ');
 
   const fillList = (el, rows) => {
     el.innerHTML = '';
-    for (const [label, value, cls] of rows) {
+    for (const [lbl, value, cls] of rows) {
       const row = document.createElement('div');
       if (cls) row.className = cls;
       row.innerHTML = '<dt></dt><dd></dd>';
-      row.firstChild.textContent = label;
+      row.firstChild.textContent = lbl;
       row.lastChild.textContent = value;
       el.append(row);
     }
   };
-  const tarief = (v, unit = 'kWh') => `€ ${nf(v, 5)} /${unit}`;
+  const tarief = (v, u = 'kWh') => `${money(v, 5)} /${u}`;
   fillList($('c-tariffs'), [
-    ['Levering normaal', tarief(c.leveringNormaal), c.dalNu ? '' : 'now'],
-    ['Levering dal', tarief(c.leveringDal), c.dalNu ? 'now' : ''],
-    ['Terugleververgoeding', tarief(c.terugleverNu)],
-    ['Terugleverkosten', tarief(c.terugleverkostenNu)],
-    ['Gas', tarief(c.gasM3, 'm³')],
-  ]);
+    [NL() ? t('Levering normaal') : t('Tarief dag'), tarief(c.leveringNormaal), c.dalNu ? '' : 'now'],
+    [NL() ? t('Levering dal') : t('Tarief nacht'), tarief(c.leveringDal), c.dalNu ? 'now' : ''],
+    [t('Terugleververgoeding'), tarief(c.terugleverNu)],
+    NL() || c.terugleverkostenNu > 0 ? [t('Terugleverkosten'), tarief(c.terugleverkostenNu)] : null,
+    has.gas ? [t('Gas'), tarief(c.gasM3, 'm³')] : null,
+  ].filter(Boolean));
 
   const k = s.costs;
-  $('c-costs-title').textContent = `Kosten ${s.label}`;
+  $('c-costs-title').textContent = t('Kosten {label}', { label });
   fillList($('c-costs'), [
-    ['Stroom', eur(k.stroom)],
-    ['Gas', eur(k.gas)],
-    [`Vaste kosten (${k.vastDagen} ${k.vastDagen === 1 ? 'dag' : 'dagen'})`, eur(k.vast)],
-    ['Totaal', eur(k.totaal), 'sum'],
-  ]);
+    [t('Stroom'), money(k.stroom)],
+    has.gas ? [t('Gas'), money(k.gas)] : null,
+    [k.vastDagen === 1 ? t('Vaste kosten (1 dag)') : t('Vaste kosten ({n} dagen)', { n: k.vastDagen }), money(k.vast)],
+    [t('Totaal'), money(k.totaal), 'sum'],
+  ].filter(Boolean));
 
   const sal = $('c-saldering');
-  if (c.saldering && c.salderingActief) {
-    sal.innerHTML = '<div><strong>Saldering stopt</strong><span class="small"></span><span class="small muted"></span></div><div class="count"></div>';
+  if (NL() && c.saldering && c.salderingActief) {
+    sal.innerHTML = `<div><strong>${t('Saldering stopt')}</strong><span class="small"></span><span class="small muted"></span></div><div class="count"></div>`;
     const smalls = sal.querySelectorAll('.small');
     smalls[0].textContent = dateLong(c.salderingEinde);
     const st = c.salderingStand;
-    let stand = `Daarna ${tarief(c.terugleverKwhNa)} vergoeding, ${tarief(c.terugleverkostenKwhNa)} kosten`;
+    let stand = t('Daarna {a} vergoeding, {b} kosten', { a: tarief(c.terugleverKwhNa), b: tarief(c.terugleverkostenKwhNa) });
     if (st && st.exp > 0) {
-      stand = `Sinds de start ${nf(st.exp, 0)} kWh teruggeleverd tegen ${nf(st.imp, 0)} kWh afgenomen${st.bron === 'dashboard' ? ' (sinds de eerste meting)' : ''}`;
-      if (st.overschot > 0) stand += `. Overschot ${nf(st.overschot, 0)} kWh krijgt ${tarief(c.terugleverKwh)}`;
+      stand = st.bron === 'dashboard'
+        ? t('Sinds de eerste meting {a} kWh teruggeleverd tegen {b} kWh afgenomen', { a: nf(st.exp, 0), b: nf(st.imp, 0) })
+        : t('Sinds de start {a} kWh teruggeleverd tegen {b} kWh afgenomen', { a: nf(st.exp, 0), b: nf(st.imp, 0) });
+      if (st.overschot > 0) stand += '. ' + t('Overschot {a} kWh krijgt {b}', { a: nf(st.overschot, 0), b: tarief(c.terugleverKwh) });
     }
     smalls[1].textContent = stand;
-    sal.querySelector('.count').innerHTML = `${c.salderingDaysLeft} <span>dagen</span>`;
+    sal.querySelector('.count').innerHTML = `${c.salderingDaysLeft} <span>${t('dagen')}</span>`;
     sal.hidden = false;
-  } else if (c.saldering) {
-    sal.innerHTML = '<div><strong>Saldering is gestopt</strong><span class="small">Teruglevering tegen de terugleververgoeding</span></div>';
+  } else if (NL() && c.saldering) {
+    sal.innerHTML = `<div><strong>${t('Saldering is gestopt')}</strong><span class="small">${t('Teruglevering tegen de terugleververgoeding')}</span></div>`;
     sal.hidden = false;
   } else {
     sal.hidden = true;
@@ -293,15 +325,15 @@ async function loadSummary() {
     const cur = await getJSON(`/api/summary?period=${period}`);
     renderSummary(cur);
     renderToday(period === 'dag' ? cur : await getJSON('/api/summary?period=dag'));
-  } catch {
-    /* status-pill toont al of de server bereikbaar is */
+  } catch (e) {
+    console.error(e); // de status toont al of de server bereikbaar is
   }
 }
 
-document.querySelectorAll('.tabs button').forEach((btn) => {
+document.querySelectorAll('[data-period]').forEach((btn) => {
   btn.addEventListener('click', () => {
     period = btn.dataset.period;
-    document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+    document.querySelectorAll('[data-period]').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
     loadSummary();
   });
 });
@@ -336,7 +368,7 @@ const HEAT_LEGEND = {
 };
 async function loadHeatmap() {
   await safe(async () => renderHeatmap($('heatmap'), await getJSON(`/api/heatmap?metric=${heatMetric}`)));
-  $('heat-legend').innerHTML = HEAT_LEGEND[heatMetric].map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('');
+  $('heat-legend').innerHTML = HEAT_LEGEND[heatMetric].map(([c, txt]) => `<span><i style="background:${c}"></i>${t(txt)}</span>`).join('');
 }
 document.querySelectorAll('[data-heat]').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -351,17 +383,17 @@ async function loadBatteryDay() {
   const d = new Date();
   d.setDate(d.getDate() + bdOffset);
   const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  $('bd-date').textContent = bdOffset === 0 ? 'vandaag' : d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+  $('bd-date').textContent = bdOffset === 0 ? t('vandaag') : d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
   $('bd-next').disabled = bdOffset >= 0;
   await safe(async () => {
     const b = await getJSON(`/api/battery?date=${key}`);
     renderBatteryDay($('battery-day'), b);
-    const stat = (v, label) => `<div><strong>${v}</strong><span>${label}</span></div>`;
+    const stat = (v, lbl) => `<div><strong>${v}</strong><span>${lbl}</span></div>`;
     $('battery-stats').innerHTML = [
-      stat(`${nf(b.charged, 1)} kWh`, 'geladen'),
-      stat(`${nf(b.discharged, 1)} kWh`, 'ontladen'),
-      stat(b.cycles == null ? '–' : nf(b.cycles, 2), 'cycli'),
-      stat(b.socMin == null ? '–' : `${Math.round(b.socMin)}–${Math.round(b.socMax)}%`, 'bereik'),
+      stat(`${nf(b.charged, 1)} kWh`, t('geladen')),
+      stat(`${nf(b.discharged, 1)} kWh`, t('ontladen')),
+      stat(b.cycles == null ? '–' : nf(b.cycles, 2), t('cycli')),
+      stat(b.socMin == null ? '–' : `${Math.round(b.socMin)}–${Math.round(b.socMax)}%`, t('bereik')),
     ].join('');
   });
 }
@@ -376,7 +408,7 @@ $('bd-next').addEventListener('click', () => {
 
 async function loadInsights() {
   await safe(async () => renderJaarnota($('jaarnota'), await getJSON('/api/jaarnota')));
-  await safe(async () => renderSaldering($('saldering-compare'), await getJSON('/api/saldering')));
+  if (NL()) await safe(async () => renderSaldering($('saldering-compare'), await getJSON('/api/saldering')));
 }
 
 loadLiveChart();
@@ -391,7 +423,7 @@ setInterval(() => {
   if (bdOffset === 0) loadBatteryDay();
 }, 5 * 60_000);
 
-$('today').textContent = new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+$('today').textContent = new Date().toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 loadLive();
 loadSummary();
 setInterval(loadSummary, 60_000);

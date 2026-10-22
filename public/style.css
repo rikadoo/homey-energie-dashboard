@@ -255,3 +255,42 @@ h2 { font-size: 16px; font-weight: 600; }
   .fl.on, .dot.ok { animation: none; }
   #ring, .col .bar { transition: none; }
 }
+
+/* Installatiewizard */
+.wizard { max-width: 820px; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+.steps li { flex: 1 1 0; height: 6px; border-radius: 3px; background: var(--line); }
+.steps li.done { background: var(--batt); }
+.steps li.now { background: var(--sun); }
+.w-card { display: flex; flex-direction: column; gap: 24px; }
+.w-card h2 { font-family: var(--display); font-size: 26px; font-weight: 700; }
+.w-card .fields { margin-top: 4px; }
+.w-nav { display: flex; align-items: center; gap: 16px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 20px; }
+.w-nav .result { flex: 1; text-align: center; }
+.choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.choice { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid var(--line-strong); border-radius: 14px; cursor: pointer; background: var(--bg); }
+.choice:has(input:checked) { border-color: var(--sun); background: #1E1A12; }
+.choice input { width: 20px; height: 20px; accent-color: var(--sun); margin-top: 2px; flex: none; }
+.choice strong { display: block; font-size: 16px; }
+.choice span { color: var(--muted); font-size: 14px; }
+.lang-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+.lang-buttons .btn[aria-pressed="true"] { border-color: var(--sun); color: var(--sun); }
+.map-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: end; padding: 14px 0; border-top: 1px solid var(--line); }
+.map-row:first-child { border-top: 0; }
+.map-row h3 { margin: 0 0 4px; font-size: 16px; }
+.map-row .help { margin: 0 0 8px; }
+.map-row .val { font-family: var(--mono); font-size: 14px; min-width: 110px; text-align: right; padding-bottom: 12px; }
+@media (max-width: 640px) {
+  .choice-grid { grid-template-columns: minmax(0, 1fr); }
+  .map-row { grid-template-columns: minmax(0, 1fr); }
+  .map-row .val { text-align: left; padding-bottom: 0; }
+}
+#w-body { display: flex; flex-direction: column; gap: 16px; }
+#w-body h2, #w-body p { margin: 0; }
+.map-row select, .w-card .field input, .w-card .field select {
+  height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong);
+  background: var(--bg); color: var(--text); font: 15px var(--body); width: 100%;
+}
+.map-row .check { margin-top: 6px; }
+.w-card .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.w-card .field label { font-size: 14px; font-weight: 500; }

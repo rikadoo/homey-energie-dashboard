@@ -1,3 +1,7 @@
+import { initI18n, applyStatic, t, LOCALE, ui } from './i18n.js';
+
+await initI18n();
+
 const $ = (id) => document.getElementById(id);
 const form = $('form');
 
@@ -57,7 +61,7 @@ function metricRow(def) {
     </div>
     ${def.dongle ? `<div class="fields src" data-src="dongle">
       <div class="field wide"><label for="${id('field')}">Waarde uit de meter</label>
-        <select id="${id('field')}" name="${n('field')}">${def.dongle.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+        <select id="${id('field')}" name="${n('field')}">${def.dongle.map(([v, l]) => `<option value="${v}">${t(l)}</option>`).join('')}</select>
       </div></div>` : ''}
     <div class="fields src" data-src="http">
       <div class="field wide"><label for="${id('url')}">URL</label><input id="${id('url')}" name="${n('url')}" placeholder="http://192.168.1.40/api/v1/data" autocomplete="off"></div>
@@ -68,8 +72,8 @@ function metricRow(def) {
       <button type="button" class="btn">Testen</button>
       <span class="result" role="status"></span>
     </div>`;
-  el.querySelector('h3').textContent = def.title;
-  el.querySelector('.help').textContent = def.help;
+  el.querySelector('h3').textContent = t(def.title);
+  el.querySelector('.help').textContent = t(def.help);
 
   const source = el.querySelector('select[name$=".source"]');
   const sync = () => el.querySelectorAll('.src').forEach((s) => (s.hidden = s.dataset.src !== source.value));
@@ -78,11 +82,11 @@ function metricRow(def) {
 
   const out = el.querySelector('.actions .result');
   el.querySelector('.actions .btn').addEventListener('click', async () => {
-    result(out, '', 'Bezig met testen…');
+    result(out, '', t('Bezig met testen…'));
     try {
       const body = collect();
       const r = await api('/api/test', { key: k, metric: body.metrics[k], homey: body.homey, dongle: body.dongle });
-      result(out, 'ok', r.value == null ? 'Deze meetwaarde staat uit.' : `Waarde: ${r.value.toLocaleString('nl-NL', { maximumFractionDigits: 3 })}`);
+      result(out, 'ok', r.value == null ? t('Deze meetwaarde staat uit.') : t('Waarde: {v}', { v: r.value.toLocaleString(LOCALE, { maximumFractionDigits: 3 }) }));
     } catch (e) {
       result(out, 'err', e.message);
     }
@@ -93,13 +97,13 @@ function metricRow(def) {
 function fillPick(select, m) {
   select.innerHTML = '';
   const add = (value, label) => select.add(new Option(label, value));
-  add('', devices ? 'Kies een apparaat' : 'Haal eerst de apparaten op');
+  add('', devices ? t('Kies een apparaat') : t('Haal eerst de apparaten op'));
   if (devices) {
     for (const d of devices) {
       const group = document.createElement('optgroup');
       group.label = d.name;
       for (const c of d.caps) {
-        const val = `${c.value.toLocaleString('nl-NL', { maximumFractionDigits: 2 })} ${c.units}`.trim();
+        const val = `${c.value.toLocaleString(LOCALE, { maximumFractionDigits: 2 })} ${c.units}`.trim();
         group.append(new Option(`${c.title} (${val})`, `${d.id}|${c.id}`));
       }
       select.append(group);
@@ -107,7 +111,7 @@ function fillPick(select, m) {
   }
   if (m.deviceId && m.capability) {
     const want = `${m.deviceId}|${m.capability}`;
-    if (![...select.options].some((o) => o.value === want)) add(want, `Opgeslagen: ${m.capability}`);
+    if (![...select.options].some((o) => o.value === want)) add(want, t('Opgeslagen: {cap}', { cap: m.capability }));
     select.value = want;
   }
 }
@@ -145,11 +149,11 @@ function fill(cfg) {
     if (el.type === 'checkbox') el.checked = Boolean(v);
     else el.value = v ?? '';
   }
-  $('homey-token').placeholder = cfg.homey.tokenSet ? 'Opgeslagen, laat leeg om te behouden' : '';
+  $('homey-token').placeholder = cfg.homey.tokenSet ? t('Opgeslagen, laat leeg om te behouden') : '';
   for (const def of METRICS) {
     const m = cfg.metrics[def.key];
     const auth = form.elements[`metrics.${def.key}.auth`];
-    auth.placeholder = m.authSet ? 'Opgeslagen, laat leeg om te behouden' : '';
+    auth.placeholder = m.authSet ? t('Opgeslagen, laat leeg om te behouden') : '';
     fillPick(form.querySelector(`[data-pick="${def.key}"]`), m);
   }
   form.querySelectorAll('.metric').forEach((el) => el.sync());
@@ -159,26 +163,26 @@ function fill(cfg) {
 
 async function loadDevices() {
   const out = $('homey-result');
-  result(out, '', 'Apparaten ophalen…');
+  result(out, '', t('Apparaten ophalen…'));
   try {
     const body = collect();
     devices = await api('/api/homey/devices', { homey: body.homey });
     const current = collect().metrics;
     for (const def of METRICS) fillPick(form.querySelector(`[data-pick="${def.key}"]`), current[def.key]);
-    result(out, 'ok', `${devices.length} apparaten met meetwaarden gevonden.`);
+    result(out, 'ok', t('{n} apparaten met meetwaarden gevonden.', { n: devices.length }));
   } catch (e) {
-    result(out, 'err', `Apparaten ophalen mislukt: ${e.message}`);
+    result(out, 'err', t('Apparaten ophalen mislukt: {e}', { e: e.message }));
   }
 }
 $('homey-load').addEventListener('click', loadDevices);
 
 $('dongle-test').addEventListener('click', async () => {
   const out = $('dongle-result');
-  result(out, '', 'Wachten op een meting van de dongle…');
+  result(out, '', t('Wachten op een meting van de dongle…'));
   try {
     const v = await api('/api/dongle/test', { dongle: collect().dongle });
-    const f = (x, d) => (x == null ? '–' : x.toLocaleString('nl-NL', { maximumFractionDigits: d }));
-    result(out, 'ok', `Verbonden. Net ${f(v.grid_w, 0)} W, gas ${f(v.gas_m3, 3)} m³.`);
+    const f = (x, d) => (x == null ? '–' : x.toLocaleString(LOCALE, { maximumFractionDigits: d }));
+    result(out, 'ok', t('Verbonden. Net {w} W, gas {m3} m³.', { w: f(v.grid_w, 0), m3: f(v.gas_m3, 3) }));
   } catch (e) {
     result(out, 'err', e.message);
   }
@@ -186,7 +190,7 @@ $('dongle-test').addEventListener('click', async () => {
 
 $('sg-test').addEventListener('click', async () => {
   const out = $('sg-result');
-  result(out, '', 'Bezig… sla eerst je instellingen op als je ze net hebt gewijzigd.');
+  result(out, '', t('Bezig… sla eerst je instellingen op als je ze net hebt gewijzigd.'));
   try {
     const st = await api('/api/signals/test', {});
     result(out, st.ok ? 'ok' : 'err', st.message);
@@ -195,25 +199,40 @@ $('sg-test').addEventListener('click', async () => {
   }
 });
 api('/api/signals')
-  .then((st) => st.updated && result($('sg-result'), st.ok ? 'ok' : 'err', `${st.message} (${new Date(st.updated).toLocaleTimeString('nl-NL')})`))
+  .then((st) => st.updated && result($('sg-result'), st.ok ? 'ok' : 'err', `${st.message} (${new Date(st.updated).toLocaleTimeString(LOCALE)})`))
   .catch(() => {});
 
 form.addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const out = $('save-result');
   try {
-    fill(await api('/api/config', collect()));
-    result(out, 'ok', 'Instellingen opgeslagen.');
+    const before = ui.language;
+    const saved = await api('/api/config', collect());
+    // Andere taal gekozen: pagina opnieuw laden in de nieuwe taal
+    if ((saved.ui.language || '') !== (before || '')) return location.reload();
+    fill(saved);
+    syncCountry();
+    result(out, 'ok', t('Instellingen opgeslagen.'));
   } catch (e) {
-    result(out, 'err', `Opslaan mislukt: ${e.message}`);
+    result(out, 'err', t('Opslaan mislukt: {e}', { e: e.message }));
   }
 });
 
 $('metrics').append(...METRICS.map(metricRow));
+applyStatic();
+
+// Nederlandse regels alleen tonen als het land Nederland is
+function syncCountry() {
+  const nl = form.elements['region.country'].value === 'NL';
+  form.querySelectorAll('[data-nl-only]').forEach((el) => (el.hidden = !nl));
+  form.querySelectorAll('[data-other-only]').forEach((el) => (el.hidden = nl));
+}
+form.elements['region.country'].addEventListener('change', syncCountry);
 api('/api/config')
   .then((cfg) => {
     fill(cfg);
+    syncCountry();
     // Apparatenlijst direct laden als Homey al is ingesteld
     if (cfg.homey.url && cfg.homey.tokenSet) loadDevices();
   })
-  .catch((e) => result($('save-result'), 'err', `Instellingen laden mislukt: ${e.message}`));
+  .catch((e) => result($('save-result'), 'err', t('Instellingen laden mislukt: {e}', { e: e.message })));
