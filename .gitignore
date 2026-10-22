@@ -1,0 +1,8 @@
+# Persoonlijke gegevens: instellingen (met je Homey-API-sleutel) en meetgeschiedenis
+data/
+docker-compose.override.yml
+.env
+
+node_modules/
+.DS_Store
+*.log

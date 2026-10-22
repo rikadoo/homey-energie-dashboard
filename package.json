@@ -1,0 +1,12 @@
+{
+  "name": "homey-energie-dashboard",
+  "version": "1.0.0",
+  "description": "Lokaal energiedashboard voor Homey Pro: zonnepanelen, thuisbatterij, net, gas en je energiecontract",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js"
+  }
+}

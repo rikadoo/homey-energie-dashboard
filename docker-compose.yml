@@ -1,0 +1,18 @@
+# Voorbeeld voor Docker Compose. Kopieer dit bestand en pas het wachtwoord aan.
+services:
+  energie:
+    # Kant-en-klaar image (amd64 en arm64, ook voor een Raspberry Pi):
+    image: ghcr.io/rikadoo/homey-energie-dashboard:latest
+    # Of zelf bouwen vanuit deze map: vervang de regel hierboven door
+    # build: .
+    container_name: energie-dashboard
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Amsterdam
+      # Wachtwoord voor de instellingenpagina (gebruikersnaam maakt niet uit). Verplicht aanpassen!
+      SETTINGS_PASSWORD: "kies-een-sterk-wachtwoord"
+    volumes:
+      # Hier staan je instellingen en meetgeschiedenis. Neem deze map mee in je back-up.
+      - ./data:/data
+    ports:
+      - "8080:8080"
