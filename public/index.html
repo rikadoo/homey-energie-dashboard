@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1216">
+<title>Energie</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23F4B740' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="page">
+
+<header class="top">
+  <div>
+    <h1 class="display">Energie</h1>
+    <p class="muted" id="today"></p>
+  </div>
+  <div class="top-actions">
+    <div class="pill" id="status" role="status">
+      <span class="dot" id="status-dot"></span><span id="status-text">Verbinden…</span>
+    </div>
+    <a class="icon-btn" href="/settings" aria-label="Instellingen">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </a>
+  </div>
+</header>
+
+<p class="notice" id="notice" hidden>Er zijn nog geen bronnen gekoppeld. <a href="/settings">Open de instellingen</a> om je Homey of Energy Dongle toe te voegen.</p>
+<p class="notice" id="notice-tariffs" hidden>Je energietarieven zijn nog niet ingevuld, dus de kosten staan op € 0. <a href="/settings">Vul je contract in</a> bij de instellingen.</p>
+
+<div class="row">
+  <section class="card flow-card">
+    <div class="card-head">
+      <h2>Energiestroom nu</h2>
+      <span class="muted" id="flow-summary"></span>
+    </div>
+    <svg id="flow" viewBox="0 0 840 396" role="img" aria-labelledby="flow-desc">
+      <desc id="flow-desc">Actuele energiestroom tussen zonnepanelen, batterij, huis en net</desc>
+      <path id="p-bh" class="fl batt" d="M178 270 L374 270"/>
+      <path id="p-nh" class="fl grid" d="M662 270 L466 270"/>
+      <path id="p-zh" class="fl sun" d="M420 110 L420 224"/>
+      <path id="p-zb" class="fl sun" d="M388 94 C 280 130, 160 150, 136 224"/>
+      <path id="p-zn" class="fl sun" d="M452 94 C 560 130, 680 150, 704 224"/>
+
+      <g class="fl-label">
+        <text id="t-zh" x="432" y="172" class="sun"></text>
+        <text id="t-zb" x="252" y="196" text-anchor="middle" class="sun"></text>
+        <text id="t-zn" x="588" y="196" text-anchor="middle" class="sun"></text>
+        <text id="t-bh" x="276" y="256" text-anchor="middle" class="batt"></text>
+        <text id="t-nh" x="564" y="256" text-anchor="middle" class="grid"></text>
+      </g>
+
+      <g transform="translate(420,64)">
+        <circle r="46" class="node" style="stroke:var(--sun)"/>
+        <g fill="none" stroke="var(--sun)" stroke-width="2" stroke-linecap="round">
+          <circle r="8"/>
+          <path d="M0 -18 V-13 M0 13 V18 M-18 0 H-13 M13 0 H18 M-13 -13 L-9.5 -9.5 M9.5 9.5 L13 13 M-13 13 L-9.5 9.5 M9.5 -9.5 L13 -13"/>
+        </g>
+      </g>
+      <text x="482" y="40" class="n-label">Zonnepanelen</text>
+      <text x="482" y="82" class="n-big" id="v-solar">–</text>
+
+      <g id="batt-node"><g transform="translate(130,270)">
+        <circle r="46" class="node" style="stroke:var(--batt)"/>
+        <rect x="-14" y="-8" width="24" height="16" rx="3" fill="none" stroke="var(--batt)" stroke-width="2"/>
+        <path d="M13 -3 V3" stroke="var(--batt)" stroke-width="2" stroke-linecap="round"/>
+        <rect id="batt-fill" x="-11" y="-5" width="12" height="10" rx="1.5" fill="var(--batt)"/>
+      </g>
+      <text x="130" y="346" text-anchor="middle" class="n-label" id="l-batt">Batterij</text>
+      <text x="130" y="384" text-anchor="middle" class="n-val" id="v-batt">–</text></g>
+
+      <g transform="translate(420,270)">
+        <circle r="46" class="node" style="stroke:var(--house)"/>
+        <path d="M-13 2 L0 -11 L13 2 M-9 -2 V12 H9 V-2" fill="none" stroke="var(--house)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <text x="420" y="346" text-anchor="middle" class="n-label">Huis</text>
+      <text x="420" y="384" text-anchor="middle" class="n-val" id="v-house">–</text>
+
+      <g transform="translate(710,270)">
+        <circle r="46" class="node" style="stroke:var(--grid)"/>
+        <path d="M-8 13 L0 -13 L8 13 M-11 -4 H11 M-7 5 H7" fill="none" stroke="var(--grid)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <text x="710" y="346" text-anchor="middle" class="n-label" id="l-grid">Net</text>
+      <text x="710" y="384" text-anchor="middle" class="n-val" id="v-grid">–</text>
+    </svg>
+  </section>
+
+  <div class="stack">
+    <section class="card batt-card" id="batt-card">
+      <svg width="132" height="132" viewBox="0 0 132 132" class="ring" aria-hidden="true">
+        <circle cx="66" cy="66" r="54" fill="none" stroke="var(--line)" stroke-width="12"/>
+        <circle id="ring" cx="66" cy="66" r="54" fill="none" stroke="var(--batt)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 340" style="opacity:0" transform="rotate(-90 66 66)"/>
+        <text x="66" y="75" text-anchor="middle" class="ring-text" id="soc">–</text>
+      </svg>
+      <div class="batt-info">
+        <div class="muted" id="batt-name">Thuisbatterij</div>
+        <div class="display batt-kwh"><span id="batt-kwh">–</span> <span class="unit" id="batt-cap"></span></div>
+        <div class="batt-state" id="batt-state"></div>
+        <div class="muted" id="batt-eta"></div>
+        <div class="stale" id="batt-stale" hidden></div>
+      </div>
+    </section>
+
+    <section class="card today-card">
+      <div class="muted">Vandaag tot nu</div>
+      <div class="today-grid">
+        <div>
+          <div class="display big" id="today-total">–</div>
+          <div class="muted">Totale kosten</div>
+        </div>
+        <div>
+          <div class="display big sun-text" id="today-saved">–</div>
+          <div class="muted">Bespaard door zon en batterij</div>
+        </div>
+      </div>
+      <div class="muted small" id="today-split"></div>
+    </section>
+  </div>
+</div>
+
+<div class="row">
+  <section class="card live-card">
+    <div class="card-head">
+      <h2>Laatste uur</h2>
+      <div class="legend">
+        <span><i style="background:var(--sun)"></i>Zon</span>
+        <span><i style="background:var(--house)"></i>Huis</span>
+        <span><i style="background:var(--grid)"></i>Net</span>
+        <span><i style="background:var(--batt)"></i>Batterij</span>
+      </div>
+    </div>
+    <div class="live-chart" id="live-chart"></div>
+  </section>
+  <section class="card solar-card">
+    <div class="card-head"><h2>Zonnevoorspelling</h2></div>
+    <div id="solar-forecast"></div>
+  </section>
+</div>
+
+<div class="section-head">
+  <h2 class="display" id="overview-title">Overzicht vandaag</h2>
+  <div class="tabs" role="tablist" aria-label="Periode">
+    <button type="button" role="tab" data-period="dag" aria-selected="true">Vandaag</button>
+    <button type="button" role="tab" data-period="week" aria-selected="false">Week</button>
+    <button type="button" role="tab" data-period="maand" aria-selected="false">Maand</button>
+    <button type="button" role="tab" data-period="jaar" aria-selected="false">Jaar</button>
+  </div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="row">
+  <section class="card chart-card">
+    <div class="card-head">
+      <h2>Opwek en verbruik</h2>
+      <div class="legend">
+        <span><i style="background:var(--sun)"></i>Opwek</span>
+        <span><i style="background:var(--house)"></i>Verbruik</span>
+      </div>
+    </div>
+    <div class="chart" id="chart"></div>
+  </section>
+
+  <section class="card contract-card">
+    <div class="card-head">
+      <div>
+        <div class="muted">Contract</div>
+        <div class="display mid" id="c-supplier">–</div>
+      </div>
+      <span class="muted" id="c-desc"></span>
+    </div>
+    <div class="term">
+      <div class="term-dates"><span id="c-start"></span><span class="muted" id="c-end"></span></div>
+      <div class="bar-track"><div class="bar-fill" id="c-progress"></div></div>
+      <div class="muted small" id="c-days"></div>
+      <div class="muted small" id="c-termijn"></div>
+    </div>
+    <dl class="tariffs" id="c-tariffs"></dl>
+    <div class="costs">
+      <h3 id="c-costs-title">Kosten</h3>
+      <dl class="tariffs" id="c-costs"></dl>
+    </div>
+    <div class="saldering" id="c-saldering"></div>
+  </section>
+</div>
+
+<div class="row two">
+  <section class="card">
+    <div class="card-head">
+      <h2>Waar ging je energie heen</h2>
+      <span class="muted" id="sankey-label"></span>
+    </div>
+    <div id="sankey"></div>
+  </section>
+  <section class="card" id="battery-day-card">
+    <div class="card-head">
+      <h2>Batterijdag</h2>
+      <div class="day-nav">
+        <button type="button" class="icon-btn small-btn" id="bd-prev" aria-label="Vorige dag">‹</button>
+        <span id="bd-date"></span>
+        <button type="button" class="icon-btn small-btn" id="bd-next" aria-label="Volgende dag">›</button>
+      </div>
+    </div>
+    <div id="battery-day"></div>
+    <div class="mini-stats" id="battery-stats"></div>
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-head">
+    <h2>Patroon van de afgelopen 4 weken</h2>
+    <div class="tabs small-tabs" role="tablist" aria-label="Heatmap">
+      <button type="button" role="tab" data-heat="house" aria-selected="true">Verbruik</button>
+      <button type="button" role="tab" data-heat="solar" aria-selected="false">Opwek</button>
+      <button type="button" role="tab" data-heat="net" aria-selected="false">Net</button>
+    </div>
+  </div>
+  <div class="heat-wrap" id="heatmap"></div>
+  <div class="legend small" id="heat-legend"></div>
+</section>
+
+<div class="row two">
+  <section class="card">
+    <div class="card-head"><h2>Jaarnota-voorspelling</h2><span class="muted small">contractjaar</span></div>
+    <div id="jaarnota"></div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Wat kost het einde van de saldering?</h2></div>
+    <div id="saldering-compare"></div>
+  </section>
+</div>
+
+</main>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

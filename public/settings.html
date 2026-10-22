@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1216">
+<title>Instellingen – Energie</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="page settings">
+<header class="top">
+  <div>
+    <h1 class="display">Instellingen</h1>
+    <p class="muted">Koppel je bronnen en vul je contract in.</p>
+  </div>
+  <a class="btn" href="/" style="display:inline-flex;align-items:center;text-decoration:none">Naar dashboard</a>
+</header>
+
+<form id="form" novalidate>
+
+<fieldset>
+  <legend>Homey Pro</legend>
+  <p class="help">Maak in de Homey-webapp onder Instellingen, API-sleutels een sleutel met recht op apparaten bekijken. Het adres is het lokale IP van je Homey, bijvoorbeeld http://192.168.1.20.</p>
+  <div class="fields">
+    <div class="field"><label for="homey-url">Adres</label><input id="homey-url" name="homey.url" placeholder="http://192.168.1.20" autocomplete="off"></div>
+    <div class="field"><label for="homey-token">API-sleutel</label><input id="homey-token" name="homey.token" type="password" autocomplete="off"></div>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn" id="homey-load">Apparaten ophalen</button>
+    <span class="result" id="homey-result"></span>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Homey Energy Dongle</legend>
+  <p class="help">Zet in de Homey-app bij de dongle onder Geavanceerde instellingen de Local API aan. Vul het WebSocket-adres in, meestal ws://IP-van-de-dongle/ws.</p>
+  <div class="fields">
+    <div class="field wide"><label for="dongle-url">WebSocket-adres</label><input id="dongle-url" name="dongle.url" placeholder="ws://192.168.1.30/ws" autocomplete="off"></div>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn" id="dongle-test">Verbinding testen</button>
+    <span class="result" id="dongle-result"></span>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Meetwaarden</legend>
+  <p class="help">Kies per meetwaarde waar hij vandaan komt. Met Testen zie je direct de waarde die het dashboard gaat gebruiken.</p>
+  <div id="metrics"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Thuisbatterij</legend>
+  <div class="fields">
+    <div class="field"><label for="batt-name">Naam</label><input id="batt-name" name="battery.name"></div>
+    <div class="field"><label for="batt-cap">Capaciteit (kWh)</label><input id="batt-cap" name="battery.capacityKwh" type="number" step="0.1" min="0" inputmode="decimal"></div>
+    <div class="field wide"><label class="check" for="batt-noexp"><input id="batt-noexp" name="battery.noExport" type="checkbox"> De batterij levert nooit terug aan het net (nul-op-de-meter, zoals de meeste thuisbatterijen met P1-meter)</label></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Contract</legend>
+  <p class="help">Neem de bedragen over van je contract of tarievenoverzicht, inclusief energiebelasting en btw. Vul alles positief in, ook als je leverancier de terugleververgoeding met een minteken toont.</p>
+  <div class="fields">
+    <div class="field"><label for="c-supplier">Leverancier</label><input id="c-supplier" name="contract.supplier"></div>
+    <div class="field"><label for="c-desc">Omschrijving</label><input id="c-desc" name="contract.description"></div>
+    <div class="field"><label for="c-start">Startdatum</label><input id="c-start" name="contract.start" type="date"></div>
+    <div class="field"><label for="c-end">Einddatum</label><input id="c-end" name="contract.end" type="date"></div>
+  </div>
+
+  <h3 class="sub">Stroom</h3>
+  <div class="fields">
+    <div class="field"><label for="c-norm">Normaaltarief (€/kWh)</label><input id="c-norm" name="contract.leveringNormaal" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-dal">Daltarief (€/kWh)</label><input id="c-dal" name="contract.leveringDal" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-dals">Daltarief vanaf (uur)</label><input id="c-dals" name="contract.dalStart" type="number" step="1" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-dale">Daltarief tot (uur)</label><input id="c-dale" name="contract.dalEnd" type="number" step="1" min="0" inputmode="decimal"></div>
+    <div class="field"><label class="check" for="c-wkd"><input id="c-wkd" name="contract.weekendDal" type="checkbox"> Zaterdag en zondag de hele dag daltarief</label></div>
+    <div class="field"><label class="check" for="c-feest"><input id="c-feest" name="contract.feestdagenDal" type="checkbox"> Feestdagen de hele dag daltarief</label></div>
+  </div>
+
+  <h3 class="sub">Teruglevering</h3>
+  <div class="fields">
+    <div class="field"><label class="check" for="c-sal"><input id="c-sal" name="contract.saldering" type="checkbox"> Salderen tot de wisseldatum</label></div>
+    <div class="field"><label for="c-salv">Volgorde van salderen</label>
+      <select id="c-salv" name="contract.salderingVolgorde">
+        <option value="normaal-eerst">Eerst met normaal, dan dal</option>
+        <option value="per-telwerk">Per telwerk (normaal tegen normaal, dal tegen dal)</option>
+      </select>
+    </div>
+    <div class="field"><label for="c-sal-end">Wisseldatum (einde saldering)</label><input id="c-sal-end" name="contract.salderingEinde" type="date"></div>
+    <div class="field"><label for="c-terug">Terugleververgoeding tot wisseldatum (€/kWh)</label><input id="c-terug" name="contract.terugleverKwh" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-kosten">Terugleverkosten tot wisseldatum (€/kWh)</label><input id="c-kosten" name="contract.terugleverkostenKwh" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-terug2">Terugleververgoeding vanaf wisseldatum (€/kWh)</label><input id="c-terug2" name="contract.terugleverKwhNa" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-kosten2">Terugleverkosten vanaf wisseldatum (€/kWh)</label><input id="c-kosten2" name="contract.terugleverkostenKwhNa" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+  </div>
+
+  <h3 class="sub">Gas</h3>
+  <div class="fields">
+    <div class="field"><label for="c-gas">Gastarief (€/m³)</label><input id="c-gas" name="contract.gasM3" type="number" step="0.00001" min="0" inputmode="decimal"></div>
+  </div>
+
+  <h3 class="sub">Vaste kosten per jaar</h3>
+  <div class="fields">
+    <div class="field"><label for="c-svast">Stroom, vaste leveringskosten (€/jaar)</label><input id="c-svast" name="contract.stroomVastJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-snet">Stroom, systeembeheerkosten (€/jaar)</label><input id="c-snet" name="contract.stroomNetbeheerJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-gvast">Gas, vaste leveringskosten (€/jaar)</label><input id="c-gvast" name="contract.gasVastJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-gnet">Gas, systeembeheerkosten (€/jaar)</label><input id="c-gnet" name="contract.gasNetbeheerJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-veb">Vermindering energiebelasting (€/jaar)</label><input id="c-veb" name="contract.verminderingEbJaar" type="number" step="0.01" min="0" inputmode="decimal"></div>
+  </div>
+  <p class="help">De vermindering energiebelasting is een vaste korting per jaar, vastgesteld door de overheid: € 628,96 in 2026 (incl. btw).</p>
+
+  <h3 class="sub">Meterstanden op de startdatum</h3>
+  <p class="help">Optioneel, voor een exacte jaarnota-voorspelling. Vraag de meterstanden op de startdatum op bij je netbeheerder (of kijk in de app van je leverancier). Laag/T1 is dal, hoog/T2 is normaal. Werkt alleen als het net via de Energy Dongle direct wordt uitgelezen.</p>
+  <div class="fields">
+    <div class="field"><label for="sm-in">Afname normaal (kWh)</label><input id="sm-in" name="contract.startMeter.impNormaal" type="number" step="0.001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="sm-id">Afname dal (kWh)</label><input id="sm-id" name="contract.startMeter.impDal" type="number" step="0.001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="sm-en">Teruglevering normaal (kWh)</label><input id="sm-en" name="contract.startMeter.expNormaal" type="number" step="0.001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="sm-ed">Teruglevering dal (kWh)</label><input id="sm-ed" name="contract.startMeter.expDal" type="number" step="0.001" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="sm-gas">Gas (m³)</label><input id="sm-gas" name="contract.startMeter.gas" type="number" step="0.001" min="0" inputmode="decimal"></div>
+  </div>
+
+  <h3 class="sub">Jaarverbruik vorig jaar (optioneel)</h3>
+  <p class="help">Van je vorige jaarnota of eindafrekening. Zolang het dashboard nog geen heel jaar heeft gemeten, gebruikt de jaarnota-voorspelling dit voor de maanden die nog komen, vooral voor het gas in de winter.</p>
+  <div class="fields three">
+    <div class="field"><label for="vj-imp">Afname stroom (kWh)</label><input id="vj-imp" name="contract.vorigJaar.imp" type="number" step="1" min="0" inputmode="numeric"></div>
+    <div class="field"><label for="vj-exp">Teruglevering (kWh)</label><input id="vj-exp" name="contract.vorigJaar.exp" type="number" step="1" min="0" inputmode="numeric"></div>
+    <div class="field"><label for="vj-gas">Gas (m³)</label><input id="vj-gas" name="contract.vorigJaar.gas" type="number" step="1" min="0" inputmode="numeric"></div>
+  </div>
+
+  <h3 class="sub">Betaling</h3>
+  <div class="fields">
+    <div class="field"><label for="c-termijn">Termijnbedrag (€/maand)</label><input id="c-termijn" name="contract.termijnbedrag" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="c-bonus">Loyaliteitsbonus (€, eenmalig)</label><input id="c-bonus" name="contract.bonus" type="number" step="0.01" min="0" inputmode="decimal"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Zonnevoorspelling</legend>
+  <p class="help">Via de gratis dienst forecast.solar. De locatie mag afgerond zijn (2 decimalen). Richting: 0 = zuid, −90 = oost, 90 = west. Liggen je panelen op twee dakvlakken, vul dan ook het tweede vlak in.</p>
+  <div class="fields">
+    <div class="field wide"><label class="check" for="so-on"><input id="so-on" name="solar.enabled" type="checkbox"> Zonnevoorspelling aan</label></div>
+    <div class="field"><label for="so-lat">Breedtegraad</label><input id="so-lat" name="solar.lat" type="number" step="0.01" inputmode="decimal"></div>
+    <div class="field"><label for="so-lon">Lengtegraad</label><input id="so-lon" name="solar.lon" type="number" step="0.01" inputmode="decimal"></div>
+  </div>
+  <h3 class="sub">Dakvlak 1</h3>
+  <div class="fields three">
+    <div class="field"><label for="p0-kwp">Vermogen (kWp)</label><input id="p0-kwp" name="solar.planes.0.kwp" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="p0-tilt">Hellingshoek (°)</label><input id="p0-tilt" name="solar.planes.0.tilt" type="number" step="1" min="0" max="90" inputmode="numeric"></div>
+    <div class="field"><label for="p0-az">Richting (°)</label><input id="p0-az" name="solar.planes.0.azimuth" type="number" step="1" min="-180" max="180" inputmode="numeric"></div>
+  </div>
+  <h3 class="sub">Dakvlak 2 (optioneel)</h3>
+  <div class="fields three">
+    <div class="field"><label for="p1-kwp">Vermogen (kWp)</label><input id="p1-kwp" name="solar.planes.1.kwp" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label for="p1-tilt">Hellingshoek (°)</label><input id="p1-tilt" name="solar.planes.1.tilt" type="number" step="1" min="0" max="90" inputmode="numeric"></div>
+    <div class="field"><label for="p1-az">Richting (°)</label><input id="p1-az" name="solar.planes.1.azimuth" type="number" step="1" min="-180" max="180" inputmode="numeric"></div>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Signalen naar Homey</legend>
+  <p class="help">Het dashboard houdt een paar variabelen bij in Homey (Logica), die je in flows kunt gebruiken: Energie overschot (W), Energie zonne-overschot, Energie batterij vol, Energie batterij (%), Energie daltarief, Energie kosten vandaag (€) en Energie zon morgen (kWh). De API-sleutel van Homey heeft hiervoor ook het recht nodig om Logica te beheren.</p>
+  <div class="fields">
+    <div class="field wide"><label class="check" for="sg-on"><input id="sg-on" name="signals.enabled" type="checkbox"> Signalen naar Homey aan</label></div>
+    <div class="field"><label for="sg-w">Zonne-overschot vanaf (W teruglevering)</label><input id="sg-w" name="signals.surplusW" type="number" step="50" min="0" inputmode="numeric"></div>
+    <div class="field"><label for="sg-min">Minimaal aanhouden (minuten)</label><input id="sg-min" name="signals.minutes" type="number" step="1" min="0" inputmode="numeric"></div>
+    <div class="field"><label for="sg-full">Batterij vol vanaf (%)</label><input id="sg-full" name="signals.batteryFull" type="number" step="1" min="0" max="100" inputmode="numeric"></div>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn" id="sg-test">Nu naar Homey sturen</button>
+    <span class="result" id="sg-result"></span>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Algemeen</legend>
+  <div class="fields">
+    <div class="field"><label for="refresh">Meten elke (seconden)</label><input id="refresh" name="refreshSeconds" type="number" min="3" max="300" inputmode="numeric"></div>
+  </div>
+</fieldset>
+
+<div class="savebar">
+  <button type="submit" class="btn primary">Instellingen opslaan</button>
+  <span class="result" id="save-result" role="status"></span>
+</div>
+</form>
+</main>
+<script type="module" src="/settings.js"></script>
+</body>
+</html>
