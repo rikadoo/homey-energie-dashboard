@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, saveConfig, publicConfig, mergeIncoming, effective, METRIC_KEYS } from './lib/config.js';
@@ -15,6 +15,27 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const PORT = Number(process.env.PORT) || 8080;
 const PASSWORD = process.env.SETTINGS_PASSWORD || '';
+
+// Controleer of de datamap beschrijfbaar is, met een begrijpelijke melding als dat niet zo is
+try {
+  await mkdir(DATA_DIR, { recursive: true });
+  const probe = path.join(DATA_DIR, '.schrijftest');
+  await writeFile(probe, 'ok');
+  await unlink(probe);
+} catch (e) {
+  console.error(`
+FOUT: de datamap ${DATA_DIR} is niet beschrijfbaar (${e.code}).
+Het dashboard kan zijn instellingen en metingen daar niet opslaan.
+Oplossing: geef de map 'data' op de host de eigenaar uid 1000, bijvoorbeeld:
+    sudo chown -R 1000:1000 data
+Gebruik je Docker Desktop met WSL, zet de map dan in je Linux-thuismap (~) en niet op /mnt/c.
+
+ERROR: the data folder ${DATA_DIR} is not writable (${e.code}).
+Fix: give the 'data' folder on the host owner uid 1000, e.g. 'sudo chown -R 1000:1000 data'.
+With Docker Desktop and WSL, keep the folder in your Linux home (~), not on /mnt/c.
+`);
+  process.exit(1);
+}
 
 let config = await loadConfig(DATA_DIR);
 const db = openDb(DATA_DIR);

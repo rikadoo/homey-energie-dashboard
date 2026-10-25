@@ -58,7 +58,7 @@ Batterij en gas zijn optioneel: heb je ze niet, dan verbergt het dashboard die o
 ```bash
 mkdir homey-energie-dashboard && cd homey-energie-dashboard
 curl -O https://raw.githubusercontent.com/rikadoo/homey-energie-dashboard/main/docker-compose.yml
-mkdir data && sudo chown 1000:1000 data     # de container draait als gebruiker 'node' (uid 1000)
+mkdir data
 # pas in docker-compose.yml het wachtwoord (SETTINGS_PASSWORD) aan
 docker compose up -d
 ```
@@ -75,6 +75,8 @@ Open daarna `http://<server>:8080`. De eerste keer start de **installatiewizard*
 ![Installatiewizard](docs/screenshots/wizard.png)
 
 Alles is daarna aan te passen bij de instellingen (tandwiel rechtsboven). Daar kun je de wizard ook opnieuw starten.
+
+De container zet de rechten op de map `data` zelf goed. Gebruik je Docker Desktop met WSL, zet de map dan in je Linux-thuismap (`~`) en niet op `/mnt/c`: op de Windows-schijf werken Linux-rechten niet goed.
 
 Liever zelf bouwen? Clone de repository en vervang in `docker-compose.yml` de regel `image:` door `build: .`.
 

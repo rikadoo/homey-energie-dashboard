@@ -52,10 +52,12 @@ A local, self-hosted energy dashboard for **Homey Pro**. Solar panels, home batt
 ```bash
 mkdir homey-energie-dashboard && cd homey-energie-dashboard
 curl -O https://raw.githubusercontent.com/rikadoo/homey-energie-dashboard/main/docker-compose.yml
-mkdir data && sudo chown 1000:1000 data     # the container runs as user 'node' (uid 1000)
+mkdir data
 # change the password (SETTINGS_PASSWORD) in docker-compose.yml
 docker compose up -d
 ```
+
+The container sets the permissions on the `data` folder itself. With Docker Desktop and WSL, keep the folder in your Linux home (`~`), not on `/mnt/c`: Linux permissions don't work properly on the Windows drive.
 
 Then open `http://<server>:8080`. On first start the **setup wizard** guides you through:
 
