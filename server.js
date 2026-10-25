@@ -1,4 +1,6 @@
 import http from 'node:http';
+import dns from 'node:dns';
+import net from 'node:net';
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +12,10 @@ import { flows, heatmap, batteryDay, salderingCompare, jaarnota } from './lib/in
 import { SolarForecast } from './lib/solar.js';
 import { HomeySignals } from './lib/signals.js';
 import { listHomeyDevices, DongleClient } from './lib/sources.js';
+
+// Veel Docker-netwerken hebben geen IPv6. Eerst IPv4 proberen voorkomt 'fetch failed' bij sites met een IPv6-adres.
+dns.setDefaultResultOrder('ipv4first');
+net.setDefaultAutoSelectFamily(true);
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
